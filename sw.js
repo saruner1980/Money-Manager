@@ -1,4 +1,4 @@
-const V = "ml-c051698e7b";
+const V = "ml-54dcad9363";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "config.js"];
 const CDN = ["https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.js", "https://cdn.jsdelivr.net/npm/sql.js@1.14.2/dist/sql-wasm.js"];
 const LIVE = ["open.er-api.com", "gold-api.com", "www.googleapis.com", "accounts.google.com", "apis.google.com"];

@@ -4351,7 +4351,7 @@ async function syncNow(opt = {}) {
         }
       }
     }
-    st.attn = false; gdSave(); setCloud("ok", "Synced " + new Date().toLocaleTimeString()); if (ia && msg) toast(msg); if (document.getElementById("gdCard")) refreshGdCard();
+    st.attn = false; gdSave(); setCloud("ok", "Synced " + new Date().toLocaleTimeString()); if (msg && (ia || msg.startsWith("Loaded"))) toast(msg === "Loaded from Google Drive" && !ia ? "Updated from Google Drive" : msg); if (document.getElementById("gdCard")) refreshGdCard();
   } catch (e) { setCloud(st.dirty ? "off" : "attn", e.message); if (ia) toast(e.message); }
   finally { GD.busy = false; }
 }
@@ -4361,6 +4361,24 @@ const saveVaultOrig = saveVault;
 saveVault = async function () { const ok = await saveVaultOrig(); if (ok && GD.state.connected && !S.data?.meta?.sample) { GD.state.dirty = true; gdSave(); setCloud("off", "Waiting to sync"); clearTimeout(GD.timer); GD.timer = setTimeout(() => syncNow({}), 8000); } return ok; };
 document.addEventListener("visibilitychange", () => { if (!document.hidden && GD.state.connected && gdValid()) syncNow({}); });
 window.addEventListener("online", () => { if (GD.state.connected && gdValid()) syncNow({}); });
+
+/* ---------- keep devices in step: periodic check + "sign in again" bar ---------- */
+const GD_POLL_MS = window.ML_POLL || 75000;
+const uiBusy = () => !!document.querySelector(".scrim, .modal, input:focus, textarea:focus, select:focus");
+function gdBar() {
+  const need = GD.state.connected && !S.data?.meta?.sample && VAULT.key && !gdValid() && P6_online() && P6_hosted();
+  let b = document.getElementById("gdBar");
+  if (!need) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement("button"); b.id = "gdBar"; b.className = "gdbar"; b.type = "button"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; await syncNow({ interactive: true }); b.disabled = false; gdBar(); }; }
+  b.textContent = GD.state.dirty ? "Changes waiting. Tap to sign in to Google and sync" : "Tap to sign in to Google and sync your other devices";
+}
+setInterval(() => { try {
+  gdBar(); if (document.hidden || !GD.state.connected || !gdValid() || GD.busy || !P6_online() || uiBusy()) return;
+  syncNow({});
+} catch (e) { } }, GD_POLL_MS);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(gdBar, 400); });
+setTimeout(gdBar, 2500); setInterval(gdBar, 20000);
+(function () { const st = document.createElement("style"); st.textContent = `.gdbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(5.2rem + env(safe-area-inset-bottom,0px));z-index:60;max-width:calc(100vw - 2rem);padding:.65rem 1.1rem;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);font:600 .85rem var(--f-ui);box-shadow:0 8px 24px -6px rgba(0,0,0,.35);cursor:pointer}.gdbar:disabled{opacity:.6}@media (min-width:900px){.gdbar{bottom:1.4rem}}`; document.head.appendChild(st); })();
 function disconnectGd() { try { if (GD.tok && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(GD.tok, () => { }); } catch (e) { } GD.tok = null; GD.state = {}; gdSave(); try { sessionStorage.removeItem("ml-gtok"); } catch (e) { } setCloud("", ""); }
 
 function gdCard() {
