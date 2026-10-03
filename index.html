@@ -1625,7 +1625,7 @@ function advance(s) { const n = s.every || 1; if (s.unit === "month") return add
 function accRow2(a, extra = []) {
   const b = bal(a.id), k = kindOf(a), la = lastActivity().get(a.id);
   return `<div class="row acc-row" data-acc="${a.id}" role="button" tabindex="0"><span class="r-ico k-${k}">${icon({ bank: "wallet", cash: "wallet", card: "card", loan: "loan", receivable: "people", payable: "people", investment: isGold(a) ? "gold" : "invest" }[k])}</span>
-    <div class="r-main"><div class="r-t">${esc(a.name)}</div><div class="r-s">${KINDS[k]} · ${esc(ctryName(ctryOf(a)))}${la ? " · last entry " + fmtDate(la) : ""}${!a.nw ? " · not in net worth" : ""}</div></div>
+    <div class="r-main"><div class="r-t">${esc(a.name)}</div><div class="r-s">${KINDS[k]} · ${esc(ctryName(ctryOf(a)))}${la ? " · last entry " + fmtDate(la) : ""}${!a.nw ? " · not in net worth" : ""}${recBadge(a)}</div></div>
     <div class="r-amt"><span class="money ${cls(b)}">${esc(money(b, a.cur))}</span>${a.cur !== base() ? `<span class="rb money">≈ ${esc(compact(toBase(b, a.cur), base()))}</span>` : ""}${extra.filter(c => c !== a.cur && hasRate(c)).map(c => `<span class="rb money">≈ ${esc(compact(fromTo(b, a.cur, c), c))}</span>`).join("")}</div></div>`;
 }
 function wireAcc(el) { el.querySelectorAll("[data-acc]").forEach(r => { r.onclick = e => { if (e.target.closest("button")) return; go2("account", { id: +r.dataset.acc }); }; r.onkeydown = e => { if (e.key === "Enter") r.click(); }; }); }
@@ -4952,6 +4952,109 @@ function curPickWire(m, sel) {
 (function () { const st = document.createElement("style"); st.textContent = `
 .gchips{display:flex;flex-wrap:wrap;gap:.3rem .45rem;position:relative;z-index:1;margin:.15rem 0 .1rem}
 .gchip{display:inline-flex;align-items:baseline;gap:.3rem;padding:.12rem .55rem;border-radius:999px;background:rgba(255,255,255,.2);backdrop-filter:blur(4px);font-size:.82rem;color:#fff;white-space:nowrap}.gchip em{font-style:normal;font-size:.68rem;font-weight:700;opacity:.8;letter-spacing:.04em}.gchip b{font-weight:700}.gchip.off{opacity:.7;font-size:.74rem}
+`; document.head.appendChild(st); })();
+
+/* ================= Reconcile: per-entry status + statement matching ================= */
+const txSt = t => t.pending ? "p" : t.rec ? "r" : "c";
+const rc2 = n => Math.round(n * 100) / 100;
+function recCounts() {
+  return memo("recCnt", () => { const m = new Map(); const started = new Set(); for (const t of D().tx) { let o = m.get(t.a); if (!o) { o = { p: 0, u: 0, r: 0 }; m.set(t.a, o); } if (t.pending) o.p++; else if (t.rec) { o.r++; started.add(t.a); } else o.u++; } for (const [a, o] of m) o.on = started.has(a); return m; });
+}
+function recBadge(a) {
+  const o = recCounts().get(a.id); if (!o) return "";
+  const bits = []; if (o.on && o.u) bits.push(`${o.u.toLocaleString()} to reconcile`); if (o.p) bits.push(`${o.p} pending`);
+  return bits.length ? ` · <span class="recb ${o.p ? "p" : ""}">${bits.join(" · ")}</span>` : "";
+}
+function recMath(a, all) {
+  let recBal = a.open || 0, clr = 0, pend = 0, nc = 0, np = 0, nr = 0;
+  for (const t of all) { if (t.pending) { pend += t.v; np++; } else if (t.rec) { recBal += t.v; nr++; } else { clr += t.v; nc++; } }
+  return { recBal: rc2(recBal), clr: rc2(clr), pend: rc2(pend), nc, np, nr };
+}
+function vAccount(v) {
+  const a = accMap().get(S2.p?.id); if (!a) return go("accounts");
+  const b = bal(a.id), k = kindOf(a), B = base();
+  const all = sortedTx().filter(t => t.a === a.id); const running = new Map(); let r = a.open || 0; for (const t of all) { r += t.v; running.set(t.id, Math.round(r * 100) / 100); }
+  const P = S2.p; P.q ??= ""; P.lim ??= 60; P.rf ??= "all"; P.rm ??= false; const sel = P.sel = (P.sel && P.sel.acc === a.id) ? P.sel : Object.assign(new Set(), { acc: a.id });
+  v.innerHTML = `<button class="btn sm ghost back" id="back">← ${k === "card" ? "Cards" : k === "loan" ? "Loans" : DEBT.has(k) ? "Owe & owed" : "Accounts"}</button>
+    ${topbar(esc(a.name), `${KINDS[k]} · ${a.type} · ${esc(ctryName(ctryOf(a)))} (${a.cur})${groupMap().get(a.group) ? " · " + esc(groupMap().get(a.group).name) : ""}`, `<button class="btn" id="impSt">${icon("upload")}Import statement</button><button class="btn" id="editAcc">Edit</button><button class="btn" id="setBal">${k === "investment" ? "Update value" : "Correct balance"}</button>${addBtn("Add entry", `data-acc="${a.id}"`)}`)}
+    ${collChips(a)}<section class="grid">
+      <div class="card span-4 stack"><div><div class="muted" style="font-size:.85rem">Balance</div><div class="bigval money ${cls(b)}">${esc(money(b, a.cur))}</div>${a.cur !== B ? `<div class="muted money">≈ ${esc(money(toBase(b, a.cur), B))}</div>` : ""}</div>
+        <div class="kv"><span>Opening balance</span><b class="money">${esc(money(a.open, a.cur))}</b><span>Entries</span><b>${all.length.toLocaleString()}</b>${all.length ? `<span>First entry</span><b>${fmtDate(all[0].d)}</b><span>Last entry</span><b>${fmtDate(all.at(-1).d)}</b>` : ""}<span>In net worth</span><b>${a.nw ? "Yes" : "No"}</b></div>
+        ${k === "card" ? `<button class="btn" data-goview="cards">Card details</button>` : k === "loan" ? `<button class="btn" id="toLoan">Loan schedule</button>` : DEBT.has(k) ? `<button class="btn primary" id="settle">Settle up</button>` : ""}</div>
+      <div class="card span-8"><div class="card-h"><h2>Balance history</h2><span class="note">Month-end</span></div><div class="chart" id="accC"></div></div>
+      <div class="card span-12" id="recCard"></div>
+      <div class="card span-12"><div class="card-h"><h2>Entries</h2><input type="search" id="q" class="search" placeholder="Search this account" value="${esc(P.q)}"></div><div id="recFilt" class="seg recf" role="group" aria-label="Show"></div><div id="reg" class="list"></div></div>
+    </section>`;
+  wireTop(); wireAdd(v);
+  const stm = () => a.recStmt || {}; const diffOf = () => { const s = stm(), m = recMath(a, all); let w = m.recBal; for (const t of all) if (sel.has(t.id)) w += t.v; return { w: rc2(w), d: s.bal == null || s.bal === "" ? null : rc2(+s.bal - w), m }; };
+  const paintPanel = () => {
+    const m = recMath(a, all), tot = all.length || 1; const { w, d } = diffOf(), s = stm(); const ticked = [...sel].length;
+    $("#recCard").innerHTML = `<div class="card-h"><h2>Reconcile</h2><span class="note">${m.nr.toLocaleString()} of ${all.length.toLocaleString()} entries reconciled</span></div>
+      <div class="recstrip"><div class="rt r"><span>Reconciled</span><b class="money">${esc(money(m.recBal, a.cur))}</b><i>${m.nr.toLocaleString()} ${m.nr === 1 ? "entry" : "entries"}</i></div>
+        <div class="rt c"><span>Not yet reconciled</span><b class="money ${cls(m.clr)}">${esc(money(m.clr, a.cur, { sign: true }))}</b><i>${m.nc.toLocaleString()} ${m.nc === 1 ? "entry" : "entries"}</i></div>
+        <div class="rt p"><span>Pending</span><b class="money ${cls(m.pend)}">${esc(money(m.pend, a.cur, { sign: true }))}</b><i>${m.np.toLocaleString()} ${m.np === 1 ? "entry" : "entries"}</i></div>
+        <div class="rt t"><span>Balance now</span><b class="money ${cls(b)}">${esc(money(b, a.cur))}</b><i>reconciled + not yet + pending</i></div></div>
+      <div class="meter" style="margin:.7rem 0 .2rem"><i style="width:${(m.nr / tot * 100).toFixed(1)}%;background:var(--pos)"></i></div>
+      <div class="recact"><button class="btn ${P.rm ? "primary" : ""}" id="rmTog">${icon("check")}${P.rm ? "Matching a statement…" : "Match a statement"}</button>
+        <span class="muted" style="font-size:.8rem">or tap the circle on any entry to reconcile it</span><span class="grow"></span>
+        <details class="recmore"><summary class="btn sm ghost">More</summary><div class="recpop"><label>Mark everything up to<input type="date" id="rUpTo" value="${esc(s.date || todayISO())}"></label><button class="btn sm" id="rUpGo">Reconcile all up to this date</button><button class="btn sm ghost" id="rClr">Clear all reconciled marks</button></div></details></div>
+      ${P.rm ? `<div class="recmatch"><div class="rmrow"><label>Statement date<input type="date" id="sDate" value="${esc(s.date || todayISO())}"></label><label>Statement closing balance (${esc(a.cur)})<input type="number" step="0.01" id="sBal" inputmode="decimal" value="${s.bal ?? ""}" placeholder="e.g. 12345.67"></label><button class="btn" id="sSel">Tick all up to the date</button><button class="btn ghost" id="sNone">Untick all</button></div>
+        <div class="rmres ${d == null ? "" : d === 0 ? "ok" : "bad"}"><div><span>Reconciled so far + ticked (${ticked})</span><b class="money">${esc(money(w, a.cur))}</b></div><div><span>Statement</span><b class="money">${s.bal === "" || s.bal == null ? "—" : esc(money(+s.bal, a.cur))}</b></div><div class="rd"><span>Difference</span><b class="money">${d == null ? "—" : esc(money(d, a.cur, { sign: true }))}</b></div></div>
+        <p class="muted" style="margin:.5rem 0 .6rem;font-size:.82rem">${d == null ? "Enter your statement's closing balance, then tick the entries that appear on the statement." : d === 0 ? "It matches. Reconcile the ticked entries to lock them in." : "Tick or untick entries until the difference is zero. Entries that would close the gap exactly are flagged below."}</p>
+        <div class="row-btns"><button class="btn primary" id="sGo" ${ticked ? "" : "disabled"}>${d === 0 ? "Reconcile" : "Reconcile anyway"} ${ticked} ticked</button></div></div>` : ""}`;
+    const g = id => $(id, $("#recCard")); g("#rmTog").onclick = () => { P.rm = !P.rm; if (P.rm) P.rf = "unrec"; sel.clear(); refresh(); };
+    g("#rUpGo").onclick = () => { const dt = g("#rUpTo").value; if (!dt) return; const L = all.filter(t => !t.pending && !t.rec && t.d <= dt); if (!L.length) return toast("Nothing to reconcile up to that date"); if (!confirm(`Mark ${L.length.toLocaleString()} entries up to ${fmtDate(dt)} as reconciled?`)) return; L.forEach(t => { t.rec = true; stamp(t); }); changed(); refresh(); toast(`${L.length.toLocaleString()} entries reconciled`); };
+    g("#rClr").onclick = () => { const L = all.filter(t => t.rec); if (!L.length) return; if (!confirm(`Remove the reconciled mark from ${L.length.toLocaleString()} entries?`)) return; L.forEach(t => { delete t.rec; stamp(t); }); changed(); refresh(); };
+    if (P.rm) { const sv = () => { a.recStmt = { date: g("#sDate").value, bal: g("#sBal").value === "" ? "" : +g("#sBal").value }; stamp(a); changedNoSave(); }; g("#sBal").oninput = () => { sv(); paintPanel2(); }; g("#sDate").onchange = () => { sv(); draw(); };
+      g("#sSel").onclick = () => { sv(); const dt = a.recStmt.date; sel.clear(); all.forEach(t => { if (!t.pending && !t.rec && (!dt || t.d <= dt)) sel.add(t.id); }); refresh(); };
+      g("#sNone").onclick = () => { sel.clear(); refresh(); };
+      g("#sGo").onclick = () => { const L = all.filter(t => sel.has(t.id)); L.forEach(t => { t.rec = true; stamp(t); }); sel.clear(); changed(); refresh(); toast(`${L.length} entries reconciled`); }; }
+  };
+  const paintPanel2 = () => { const { w, d } = diffOf(); const el = $(".rmres", $("#recCard")); if (!el) return; el.className = "rmres " + (d == null ? "" : d === 0 ? "ok" : "bad"); el.querySelector(".rd b").textContent = d == null ? "—" : money(d, a.cur, { sign: true }); el.children[0].querySelector("b").textContent = money(w, a.cur); el.children[1].querySelector("b").textContent = stm().bal === "" || stm().bal == null ? "—" : money(+stm().bal, a.cur); el.children[0].querySelector("span").textContent = `Reconciled so far + ticked (${sel.size})`; const hint = el.nextElementSibling; if (hint) hint.textContent = d == null ? "Enter your statement's closing balance, then tick the entries that appear on the statement." : d === 0 ? "It matches. Reconcile the ticked entries to lock them in." : "Tick or untick entries until the difference is zero. Entries that would close the gap exactly are flagged below."; const gb = $("#sGo", $("#recCard")); if (gb) { gb.textContent = `${d === 0 ? "Reconcile" : "Reconcile anyway"} ${sel.size} ticked`; gb.disabled = !sel.size; } draw(); };
+  const flt = { all: () => true, pend: t => t.pending, unrec: t => !t.pending && !t.rec, rec: t => !t.pending && t.rec };
+  const draw = () => {
+    const q = P.q.toLowerCase(); const cnt = { all: all.length, pend: 0, unrec: 0, rec: 0 }; all.forEach(t => { if (t.pending) cnt.pend++; else if (t.rec) cnt.rec++; else cnt.unrec++; });
+    $("#recFilt").innerHTML = [["all", "All"], ["unrec", "Unreconciled"], ["pend", "Pending"], ["rec", "Reconciled"]].map(([k2, l]) => `<button data-rf="${k2}" aria-pressed="${P.rf === k2}">${l} <em>${cnt[k2].toLocaleString()}</em></button>`).join("");
+    $("#recFilt").querySelectorAll("[data-rf]").forEach(x => x.onclick = () => { P.rf = x.dataset.rf; P.lim = 60; draw(); });
+    const f = all.slice().reverse().filter(t => flt[P.rf](t) && (!q || (txLabel(t) + " " + t.ds + " " + t.n + " " + txCatLabel(t)).toLowerCase().includes(q)));
+    const { d } = P.rm ? diffOf() : { d: null }; const dt = P.rm ? (stm().date || "") : "";
+    $("#reg").innerHTML = f.slice(0, P.lim).map(t => { const s2 = txSt(t), on = P.rm ? sel.has(t.id) : s2 === "r"; let hint = "";
+        if (P.rm && d != null && d !== 0 && s2 === "c") { if (!sel.has(t.id) && Math.abs(t.v - d) < .005) hint = `<span class="rhint">ticking this closes the gap</span>`; else if (sel.has(t.id) && Math.abs(t.v + d) < .005) hint = `<span class="rhint">unticking this closes the gap</span>`; }
+        const dis = P.rm && s2 !== "c"; const after = P.rm && dt && t.d > dt && s2 === "c";
+        return `<div class="recrow ${after ? "after" : ""}"><button class="rcb ${s2} ${on ? "on" : ""}" data-rc="${t.id}" ${dis ? "disabled" : ""} aria-label="${s2 === "p" ? "Pending" : on ? "Reconciled" : "Not reconciled"}" title="${s2 === "p" ? "Pending. Tap to mark as cleared and reconciled" : P.rm ? "Tick if it is on the statement" : on ? "Reconciled. Tap to undo" : "Tap to reconcile"}">${s2 === "p" ? "◔" : on ? "✓" : ""}</button><div class="rcm">${txLine(t, { running, showAcc: false })}${hint}</div>${s2 === "p" || P.rm ? "" : `<button class="rcp" data-rp="${t.id}" title="Mark as pending" aria-label="Mark as pending">◔</button>`}</div>`; }).join("") +
+      (f.length > P.lim ? `<div class="more"><button class="btn" id="more">Show ${Math.min(200, f.length - P.lim)} more of ${(f.length - P.lim).toLocaleString()}</button></div>` : "") || `<div class="empty">${P.rf === "all" ? "No entries" : "Nothing here. " + (P.rf === "unrec" ? "Everything is reconciled or pending." : "No entries match this filter.")}</div>`;
+    wireTx($("#reg")); const mb = $("#more"); if (mb) mb.onclick = () => { P.lim += 200; draw(); };
+    $("#reg").querySelectorAll("[data-rc]").forEach(x => x.onclick = () => { const t = txMap().get(+x.dataset.rc); if (!t) return;
+      if (P.rm && txSt(t) === "c") { sel.has(t.id) ? sel.delete(t.id) : sel.add(t.id); paintPanel2(); return; }
+      if (txSt(t) === "p") { delete t.pending; t.rec = true; } else if (t.rec) delete t.rec; else t.rec = true; stamp(t); changed(); refresh(); });
+    $("#reg").querySelectorAll("[data-rp]").forEach(x => x.onclick = () => { const t = txMap().get(+x.dataset.rp); if (!t) return; t.pending = true; delete t.rec; stamp(t); changed(); refresh(); });
+  };
+  const refresh = () => { paintPanel(); draw(); };
+  $("#q").oninput = e => { P.q = e.target.value; P.lim = 60; draw(); }; refresh();
+  $("#back").onclick = () => go(k === "card" ? "cards" : k === "loan" ? "loans" : DEBT.has(k) ? "people" : "accounts");
+  $("#editAcc").onclick = () => openAccount(a); $("#impSt").onclick = () => openStatementImport(a); wireCollChips(v, a); $("#setBal").onclick = () => openSetBalance(a);
+  v.querySelectorAll("[data-goview]").forEach(x => x.onclick = () => go(x.dataset.goview));
+  if ($("#toLoan")) $("#toLoan").onclick = () => go2("loan", { id: a.id }); if ($("#settle")) $("#settle").onclick = () => settleUp(a);
+  requestAnimationFrame(() => areaChart($("#accC"), accountSeries(a.id).slice(-60), a.cur, { h: 250, color: k === "investment" ? "var(--accent2)" : DEBT.has(k) && b < 0 ? "var(--neg)" : "var(--accent)", label: "Balance" }));
+}
+(function () { const st = document.createElement("style"); st.textContent = `
+.recb{color:var(--accent);font-weight:600}.recb.p{color:var(--accent2)}
+.recstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:.7rem}.rt{padding:.75rem .9rem;border-radius:1rem;background:var(--surface2);display:flex;flex-direction:column;gap:.1rem;border-left:4px solid var(--faint)}
+.rt span{font-size:.76rem;color:var(--muted);font-weight:600}.rt b{font:800 1.2rem var(--f-display)}.rt i{font-style:normal;font-size:.74rem;color:var(--muted)}.rt.r{border-left-color:var(--pos)}.rt.c{border-left-color:var(--accent)}.rt.p{border-left-color:var(--accent2)}.rt.t{border-left-color:var(--ink)}
+.recact{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.5rem}.recmore{position:relative}.recmore summary{list-style:none;cursor:pointer}.recmore summary::-webkit-details-marker{display:none}
+.recpop{position:absolute;right:0;top:calc(100% + .4rem);z-index:6;min-width:16rem;padding:.9rem;border-radius:1rem;background:var(--surface);box-shadow:0 14px 40px -10px rgba(var(--shadow-rgb),.45);border:1px solid var(--line);display:flex;flex-direction:column;gap:.55rem}.recpop label{display:flex;flex-direction:column;gap:.2rem;font-size:.78rem;color:var(--muted)}
+.recmatch{margin-top:.9rem;padding:1rem;border-radius:1.1rem;background:color-mix(in srgb,var(--accent) 7%,var(--surface2));border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.rmrow{display:flex;gap:.7rem;align-items:flex-end;flex-wrap:wrap}.rmrow label{display:flex;flex-direction:column;gap:.2rem;font-size:.78rem;color:var(--muted);font-weight:600}.rmrow input{min-width:9rem}
+.rmres{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:.8rem}.rmres>div{padding:.6rem .8rem;border-radius:.9rem;background:var(--surface)}.rmres span{display:block;font-size:.72rem;color:var(--muted)}.rmres b{font:800 1.1rem var(--f-display)}
+.rmres.ok .rd{background:color-mix(in srgb,var(--pos) 18%,var(--surface));color:var(--pos)}.rmres.bad .rd{background:color-mix(in srgb,var(--neg) 12%,var(--surface));color:var(--neg)}
+.recf{margin:.2rem 0 .7rem;flex-wrap:wrap}.recf em{font-style:normal;opacity:.65;font-size:.75rem;margin-left:.2rem}
+.recrow{display:flex;align-items:center;gap:.4rem}.rcm{flex:1;min-width:0;position:relative}.recrow.after{opacity:.55}
+.rcb{flex:none;width:1.7rem;height:1.7rem;border-radius:50%;border:2px solid var(--faint);background:transparent;color:var(--on-accent);display:grid;place-items:center;font-size:.85rem;font-weight:800;cursor:pointer;padding:0;transition:all .15s}
+.rcb:hover:not(:disabled){border-color:var(--pos);transform:scale(1.08)}.rcb.on{background:var(--pos);border-color:var(--pos)}.rcb.p{border-color:var(--accent2);color:var(--accent2);font-size:1rem}.rcb:disabled{opacity:.45;cursor:default}
+.rcp{flex:none;border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:.95rem;padding:.2rem;border-radius:50%;opacity:0;transition:opacity .15s}.recrow:hover .rcp,.rcp:focus{opacity:1}.rcp:hover{color:var(--accent2)}
+@media (hover:none){.rcp{opacity:.5}}
+.rhint{position:absolute;right:.8rem;top:.25rem;font-size:.68rem;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));padding:.1rem .5rem;border-radius:999px}
+@media (max-width:700px){.rmres{grid-template-columns:1fr}.recpop{right:auto;left:0}.rhint{position:static;display:inline-block;margin:0 0 .3rem .7rem}}
 `; document.head.appendChild(st); })();
 
 /* ================= home insights ================= */
