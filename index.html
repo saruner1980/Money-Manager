@@ -1501,9 +1501,9 @@ function txLine(t, { running = null, showAcc = true } = {}) {
   const lbl = txLabel(t), cat = txCatLabel(t);
   const sub = [cat, t.oc && t.oa ? money(t.oa * Math.sign(t.v || -1), t.oc) : null, showAcc ? a?.name : null, t.by && t.src !== "mw" ? "by " + t.by : null].filter(Boolean).join(" · ");
   return `<div class="txr" data-tx="${t.id}" role="button" tabindex="0">${dayBadge(t.d)}<div class="r-main"><div class="r-t">${esc(lbl)}${t.pending ? ` <span class="pill">Pending</span>` : ""}</div><div class="r-s">${esc(sub)}${t.n ? ` · <span class="faint">${esc(t.n)}</span>` : ""}</div></div>
-    <div class="r-amt"><span class="money ${cls(t.v)}">${esc(money(t.v, cur, { sign: true }))}</span>${running ? `<span class="rb money">${esc(money(running.get(t.id), cur))}</span>` : ""}</div></div>`;
+    <div class="r-amt"><span class="money ${cls(t.v)}">${esc(money(t.v, cur, { sign: true }))}</span>${running ? `<span class="rb money">${esc(money(running.get(t.id), cur))}</span>` : ""}</div>${t.t === "adj" ? "" : `<button type="button" class="txdup" data-dup="${t.id}" title="Duplicate this entry" aria-label="Duplicate this entry">${icon("copy", 1.8)}</button>`}</div>`;
 }
-function wireTx(el) { el.querySelectorAll("[data-tx]").forEach(r => { r.onclick = () => openTx(txMap().get(+r.dataset.tx)); r.onkeydown = e => { if (e.key === "Enter") r.click(); }; }); }
+function wireTx(el) { el.querySelectorAll("[data-dup]").forEach(b => b.onclick = e => { e.stopPropagation(); const t = txMap().get(+b.dataset.dup); if (t) openTx(null, dupOpts(t)); }); el.querySelectorAll("[data-tx]").forEach(r => { r.onclick = e => { if (e.target.closest("[data-dup]")) return; openTx(txMap().get(+r.dataset.tx)); }; r.onkeydown = e => { if (e.key === "Enter") r.click(); }; }); }
 function modal(html, onMount, wide = false) {
   const sc = document.createElement("div"); sc.className = "scrim"; sc.innerHTML = `<div class="modal${wide ? " wide" : ""}" role="dialog" aria-modal="true">${html}</div>`;
   document.body.appendChild(sc); S._m = document.querySelectorAll(".scrim").length; const close = () => { sc.remove(); S._m = document.querySelectorAll(".scrim").length; };
@@ -1536,17 +1536,18 @@ function openTx(t, opt = {}) {
   const I = {
     acc: t ? (type === "tr" ? (w ? w.a : dp.xa) : t.a) : (sch ? sch.a : (opt.acc || defaultAcc())),
     to: type === "tr" ? (t ? (dp ? dp.a : w.xa) : (sch ? sch.to : opt.to)) : null,
-    oc: t && t.oc ? t.oc : "", ocRate: t && t.oc && t.oa ? Math.abs(t.v) / t.oa : "",
+    oc: t && t.oc ? t.oc : (opt.oc || ""), ocRate: t && t.oc && t.oa ? Math.abs(t.v) / t.oa : (opt.ocRate || ""),
     amt: t && t.oc && t.oa ? t.oa : t ? Math.abs(type === "tr" ? (w ? w.v : dp.v) : t.v) : (sch ? Math.abs(sch.v) : (opt.amt || "")), recv: type === "tr" && dp ? Math.abs(dp.v) : "",
-    date: t ? t.d : (sch ? sch.next : todayISO()), payee: t ? payName(t.p) : (sch ? payName(sch.p) : ""),
-    cat: t && t.c && t.c.length === 1 ? t.c[0][0] : (sch?.c?.length ? sch.c[0][0] : (opt.cat || null)), desc: t ? t.ds : (sch ? sch.ds : (opt.desc || "")), notes: t ? t.n : "",
+    date: t ? t.d : (sch ? sch.next : todayISO()), payee: t ? payName(t.p) : (sch ? payName(sch.p) : (opt.payee || "")),
+    cat: t && t.c && t.c.length === 1 ? t.c[0][0] : (sch?.c?.length ? sch.c[0][0] : (opt.cat || null)), desc: t ? t.ds : (sch ? sch.ds : (opt.desc || "")), notes: t ? t.n : (opt.notes || ""),
     by: t?.by && t.src !== "mw" ? t.by : me(),
   };
   const split = t && t.c && t.c.length > 1; const quick = !t && !sch;
   const chips = quick ? topPayees(8) : [];
   modal(`<div class="m-head"><h2>${t ? "Edit entry" : sch ? "Record " + esc(sch.ds || "scheduled item") : "Add entry"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     ${t && t.t === "adj" ? `<div class="muted">Balance adjustment${t.was ? " (imported as income, treated as a value change)" : ""}.</div>` : `<div class="seg big" role="group" aria-label="Type">${[["exp", "Spending"], ["inc", "Income"], ["tr", "Transfer"]].map(([k, l]) => `<button type="button" data-ty="${k}" aria-pressed="${type === k}">${l}</button>`).join("")}</div>`}
-    <div class="amt-wrap"><span id="curLab" class="amt-cur"></span><input type="number" id="tAmt" class="amt-in money" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${I.amt}" autofocus aria-label="Amount"></div>
+    <div class="amt-wrap"><span id="curLab" class="amt-cur"></span><input type="text" id="tAmt" class="amt-in money" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${I.amt}" autofocus aria-label="Amount"><button type="button" id="calcBtn" class="calcbtn" aria-label="Calculator" title="Calculator">${icon("calc", 1.8)}</button></div>
+    <div id="calcOut" class="calc-out" hidden></div><div id="calcPad" class="calc-pad" hidden>${["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","⌫","+","(",")","%","C"].map(k => `<button type="button" data-ck="${k}">${k}</button>`).join("")}<button type="button" class="eq" data-ck="=">=</button></div>
     ${chips.length ? `<div class="pchips" aria-label="Frequent payees">${chips.map(c => `<button type="button" class="pchip" data-pc="${c.id}">${esc(payName(c.p))}</button>`).join("")}</div>` : ""}
     <form class="form" id="txf" novalidate>
       <label id="payWrap" class="full">Payee<input type="text" id="tPay" list="payees" value="${esc(I.payee)}" autocomplete="off" placeholder="Who was it paid to or received from?"></label>
@@ -1556,15 +1557,16 @@ function openTx(t, opt = {}) {
       <label id="fxRWrap" hidden><span>Rate <span id="fxRLab" class="faint"></span></span><input type="number" id="tRate" step="any" min="0" inputmode="decimal" value="${I.ocRate ? +(+I.ocRate).toFixed(6) : ""}"></label>
       <div id="fxNote" class="full muted" style="font-size:.8rem;margin-top:-.3rem" hidden></div>
       <label id="toWrap" hidden>To account<select id="tTo"><option value="">Choose…</option>${accOpts(I.to)}</select></label>
+      <label id="trRWrap" hidden><span>Rate <span id="trRLab" class="faint"></span></span><input type="number" id="tTrRate" step="any" min="0" inputmode="decimal"></label>
       <label id="recvWrap" hidden><span>Amount received <span id="curLab2" class="faint"></span></span><input type="number" id="tRecv" step="0.01" min="0" inputmode="decimal" value="${I.recv}"></label>
       <label id="catWrap" class="full"><span>Category${split ? ` <span class="faint">(split across ${t.c.length})</span>` : ""}</span><select id="tCat"></select></label>
       <label class="full">Description<input type="text" id="tDesc" value="${esc(I.desc)}"></label>
-      <label class="full">Note<input type="text" id="tNotes" value="${esc(I.notes)}"></label>
+      <label class="full">Note<textarea id="tNotes" rows="2" class="tnote">${esc(I.notes)}</textarea></label>
       <label>Added by<select id="tBy">${members().map(m => `<option ${m.name === I.by ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></label>
     </form>
     <datalist id="payees">${D().payees.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => `<option value="${esc(p.name)}">`).join("")}</datalist>
     <div id="txErr" class="err" hidden></div>
-    <div class="m-foot"><div>${t ? `<button class="btn danger" id="tDel">Delete</button>` : ""}</div><div class="row-btns">${quick ? `<button class="btn" id="tMore">Save and add another</button>` : `<button class="btn" data-x>Cancel</button>`}<button class="btn primary" id="tSave">${t ? "Save" : sch ? "Record" : "Add"}</button></div></div>`,
+    <div class="m-foot"><div>${t ? `<button class="btn danger" id="tDel">Delete</button> ${t.t === "adj" ? "" : `<button class="btn" id="tDup" type="button">${icon("copy", 1.8)}Duplicate</button>`}` : ""}</div><div class="row-btns">${quick ? `<button class="btn" id="tMore">Save and add another</button>` : `<button class="btn" data-x>Cancel</button>`}<button class="btn primary" id="tSave">${t ? "Save" : sch ? "Record" : "Add"}</button></div></div>`,
   (m, close) => {
     m.querySelectorAll("[data-x]").forEach(b => b.onclick = close);
     let touched = { cat: !!I.cat, acc: !!opt.acc || !!t || !!sch };
@@ -1575,23 +1577,26 @@ function openTx(t, opt = {}) {
       const ca = accMap().get(+$("#tAcc", m).value)?.cur || "", cb = accMap().get(+$("#tTo", m).value)?.cur || "";
       const oc0 = $("#tCur", m).value || I.oc || ca; $("#tCur", m).innerHTML = fx().map(c => `<option ${c.code === oc0 ? "selected" : ""}>${c.code}</option>`).join("");
       $("#fxWrap", m).hidden = isTr || adj; const oc = isTr || adj ? ca : $("#tCur", m).value, foreign = !isTr && !adj && ca && oc !== ca;
-      $("#fxRWrap", m).hidden = !foreign; $("#fxNote", m).hidden = !foreign; if (foreign) { $("#fxRLab", m).textContent = `(1 ${oc} in ${ca})`; if (!$("#tRate", m).value || $("#tRate", m).dataset.auto) { $("#tRate", m).value = +fromTo(1, oc, ca).toFixed(6); $("#tRate", m).dataset.auto = 1; } $("#fxNote", m).textContent = `Saved to ${accName(+$("#tAcc", m).value)} as ${money((+$("#tAmt", m).value || 0) * (+$("#tRate", m).value || 0), ca)}`; }
+      $("#fxRWrap", m).hidden = !foreign; $("#fxNote", m).hidden = !foreign; if (foreign) { $("#fxRLab", m).textContent = `(1 ${oc} in ${ca})`; if (!$("#tRate", m).value || $("#tRate", m).dataset.auto) { $("#tRate", m).value = +fromTo(1, oc, ca).toFixed(6); $("#tRate", m).dataset.auto = 1; } $("#fxNote", m).textContent = `Saved to ${accName(+$("#tAcc", m).value)} as ${money((calc($("#tAmt", m).value) || 0) * (+$("#tRate", m).value || 0), ca)}. The rate comes from your Currencies list; type your own to override it.`; }
       $("#curLab", m).textContent = foreign ? oc : ca; $("#curLab2", m).textContent = cb;
-      const cross = isTr && ca && cb && ca !== cb; $("#recvWrap", m).hidden = !cross;
-      if (cross && !$("#tRecv", m).value && $("#tAmt", m).value) $("#tRecv", m).value = fromTo(+$("#tAmt", m).value, ca, cb).toFixed(2);
+      const cross = isTr && ca && cb && ca !== cb; $("#recvWrap", m).hidden = !cross; $("#trRWrap", m).hidden = !cross;
+      if (cross) { $("#trRLab", m).textContent = `(1 ${ca} = ? ${cb})`; const R = $("#tTrRate", m), amtN = calc($("#tAmt", m).value) || 0, rv = parseFloat($("#tRecv", m).value) || 0; if (!R.value) { if (rv && amtN) R.value = +(rv / amtN).toFixed(6); else { R.value = +fromTo(1, ca, cb).toFixed(6); R.dataset.auto = 1; } } if (!$("#tRecv", m).value && amtN) $("#tRecv", m).value = (amtN * (parseFloat(R.value) || fromTo(1, ca, cb))).toFixed(2); }
       if (!isTr && !adj) { const cur = $("#tCat", m).value; const keep = cur && cur !== "__keep" ? +cur : I.cat; $("#tCat", m).innerHTML = (split ? `<option value="__keep">Keep the split</option>` : "") + catOpts(type === "inc" ? "inc" : "exp", split ? null : keep); }
     };
     const fillFrom = last => { if (!last) return; if (!touched.cat && last.c?.length === 1) { I.cat = last.c[0][0]; $("#tCat", m).value = ""; } if (!touched.acc) $("#tAcc", m).value = last.a; if (last.t !== type && (last.t === "exp" || last.t === "inc")) { type = last.t; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); } sync(); if (!touched.cat && last.c?.length === 1) $("#tCat", m).value = last.c[0][0]; };
     m.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { type = b.dataset.ty; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); sync(); });
     m.querySelectorAll("[data-pc]").forEach(b => b.onclick = () => { const last = txMap().get(+b.dataset.pc); $("#tPay", m).value = payName(last.p); touched.cat = false; touched.acc = false; fillFrom(last); if (!$("#tAmt", m).value) $("#tAmt", m).focus(); });
     $("#tPay", m).onchange = () => { const p = D().payees.find(x => x.name.toLowerCase() === clean($("#tPay", m).value).toLowerCase()); if (p) fillFrom(lastByPayee().get(p.id)); };
-    $("#tCat", m).onchange = () => touched.cat = true; $("#tAcc", m).onchange = () => { touched.acc = true; sync(); }; $("#tTo", m).onchange = () => { $("#tRecv", m).value = ""; sync(); };
+    $("#tCat", m).onchange = () => touched.cat = true; $("#tAcc", m).onchange = () => { touched.acc = true; sync(); }; $("#tTo", m).onchange = () => { $("#tRecv", m).value = ""; $("#tTrRate", m).value = ""; delete $("#tTrRate", m).dataset.auto; sync(); };
     $("#tCur", m).onchange = () => { $("#tRate", m).value = ""; $("#tRate", m).dataset.auto = 1; sync(); }; $("#tRate", m).oninput = () => { delete $("#tRate", m).dataset.auto; sync(); };
-    $("#tAmt", m).oninput = () => { if (type !== "tr") { const n = $("#fxNote", m); if (!n.hidden) sync(); } const ca = accMap().get(+$("#tAcc", m).value)?.cur, cb = accMap().get(+$("#tTo", m).value)?.cur; if (type === "tr" && ca && cb && ca !== cb) $("#tRecv", m).value = fromTo(+$("#tAmt", m).value || 0, ca, cb).toFixed(2); };
+    $("#tAmt", m).oninput = () => { if (type !== "tr") { const n = $("#fxNote", m); if (!n.hidden) sync(); } const ca = accMap().get(+$("#tAcc", m).value)?.cur, cb = accMap().get(+$("#tTo", m).value)?.cur; if (type === "tr" && ca && cb && ca !== cb) $("#tRecv", m).value = ((calc($("#tAmt", m).value) || 0) * (parseFloat($("#tTrRate", m).value) || fromTo(1, ca, cb))).toFixed(2); calcShow(m); };
+    $("#tTrRate", m).oninput = () => { delete $("#tTrRate", m).dataset.auto; $("#tRecv", m).value = ((calc($("#tAmt", m).value) || 0) * (parseFloat($("#tTrRate", m).value) || 0)).toFixed(2); };
+    $("#tRecv", m).oninput = () => { const a0 = calc($("#tAmt", m).value) || 0, r0 = parseFloat($("#tRecv", m).value) || 0; if (a0 && r0) { $("#tTrRate", m).value = +(r0 / a0).toFixed(6); delete $("#tTrRate", m).dataset.auto; } };
+    calcWire(m); m.addEventListener("keydown", e => { if (e.key !== "Enter" || e.isComposing) return; const el = e.target; if (el.tagName === "BUTTON") return; if (el.tagName === "TEXTAREA" && !(e.ctrlKey || e.metaKey)) return; e.preventDefault(); $("#tSave", m).click(); });
     sync();
     const err = msg => { const e = $("#txErr", m); e.hidden = false; e.textContent = msg; return false; };
     const save = () => {
-      const acc = +$("#tAcc", m).value, date = $("#tDate", m).value, amt = Math.round((parseFloat($("#tAmt", m).value) || 0) * 100) / 100;
+      const acc = +$("#tAcc", m).value, date = $("#tDate", m).value, amt = Math.round((calc($("#tAmt", m).value) || 0) * 100) / 100;
       if (!(amt > 0)) return err("Enter an amount above zero."); if (!acc) return err("Choose an account."); if (!date) return err("Choose a date.");
       const desc = clean($("#tDesc", m).value), notes = $("#tNotes", m).value.trim(), by = $("#tBy", m).value;
       if (t && t.t === "adj") { Object.assign(t, { d: date, v: Math.sign(t.v || 1) * amt, ds: desc, n: notes }); stamp(t, by); return true; }
@@ -1615,6 +1620,7 @@ function openTx(t, opt = {}) {
     };
     $("#tSave", m).onclick = () => { if (!save()) return; changed(); close(); renderApp(); toast(t ? "Saved" : sch ? "Recorded" : "Added"); };
     if ($("#tMore", m)) $("#tMore", m).onclick = () => { if (!save()) return; changed(); toast("Added"); $("#tAmt", m).value = ""; $("#tPay", m).value = ""; $("#tDesc", m).value = ""; $("#tNotes", m).value = ""; touched = { cat: false, acc: true }; $("#txErr", m).hidden = true; $("#tAmt", m).focus(); };
+    if ($("#tDup", m)) $("#tDup", m).onclick = () => { close(); openTx(null, dupOpts(t)); };
     if (t) $("#tDel", m).onclick = () => { const f = $(".m-foot", m); f.firstElementChild.innerHTML = `<span class="neg" style="margin-right:.5rem">Delete${t.t === "tin" || t.t === "tout" ? " both sides of this transfer" : ""}?</span><button class="btn danger" id="tDel2">Delete</button>`;
       $("#tDel2", m).onclick = () => { delTx(t); changed(); close(); renderApp(); toast("Deleted"); }; };
   });
@@ -1812,13 +1818,13 @@ function vCards(v) {
   const tot = active.reduce((s, a) => s + Math.max(0, -toBase(bal(a.id), a.cur)), 0), lim = active.reduce((s, a) => s + toBase(cardInfo(a).limit, a.cur), 0);
   const grad = ["var(--c1)", "var(--c7)", "var(--c2)", "var(--c3)", "var(--c5)", "var(--c4)"];
   v.innerHTML = `${topbar("Cards", `${active.length} active · ${esc(compact(tot, base()))} owed${lim ? ` of ${esc(compact(lim, base()))} total limit` : ""}`, addBtn("Add card spend", `data-type="exp"`))}
-    <section class="grid">${active.map((a, i) => { const c = cardInfo(a);
+    <section class="grid">${active.length ? cardsStrip(active) : ""}${active.map((a, i) => { const c = cardInfo(a);
       return `<div class="card span-6 ccard hov" data-acc="${a.id}"><div class="plastic" style="--g:${grad[i % grad.length]}"><div class="pl-top"><b>${esc(a.name)}</b><span>${icon("card")}</span></div>
           <div class="pl-num money">•••• ${esc(a.last4 || a.card?.last4 || "····")}</div><div class="pl-bot"><span>Owed <b class="money">${esc(money(c.owed, a.cur))}</b></span>${c.avail != null ? `<span>Available <b class="money">${esc(compact(c.avail, a.cur))}</b></span>` : ""}</div></div>
-        ${c.util != null ? `<div class="util"><div class="hm-bar"><i style="width:${Math.min(100, c.util * 100).toFixed(1)}%;background:${c.util > .7 ? "var(--neg)" : c.util > .3 ? "var(--accent2)" : "var(--pos)"}"></i></div><span class="muted">${(c.util * 100).toFixed(0)}% of ${esc(compact(c.limit, a.cur))} limit used</span></div>` : `<div class="muted" style="font-size:.82rem">Add the limit, statement day and due day to see utilisation and due dates.</div>`}
+        ${cardFig(a)}
         <div class="kv">${c.due ? `<span>Payment due</span><b class="${c.due < now ? "neg" : ""}">${fmtDate(c.due)}</b>` : ""}${c.lastStmt ? `<span>Statement balance</span><b class="money">${esc(money(Math.max(0, -c.stmtBal), a.cur))}</b><span>Spent this cycle</span><b class="money">${esc(money(c.cycleSpend, a.cur))}</b><span>Last cycle</span><b class="money">${esc(money(c.prevSpend, a.cur))}</b><span>Next statement</span><b>${fmtDate(c.nextStmt)}</b>` : `<span>Spent last 30 days</span><b class="money">${esc(money(c.cycleSpend, a.cur))}</b>`}</div>
         <div class="row-btns"><button class="btn sm" data-cset="${a.id}">Card settings</button><button class="btn sm primary" data-pay="${a.id}">Pay card</button></div></div>`; }).join("") || `<div class="card span-12 empty">No active cards</div>`}</section>
-    ${idle.length ? `<div class="card" style="margin-top:1.1rem"><details><summary><b>Inactive cards (${idle.length})</b> <span class="muted">· no balance and no activity in 12 months</span></summary><div class="list" style="margin-top:.6rem">${idle.map(accRow2).join("")}</div></details></div>` : ""}`;
+    ${idle.length ? `<div class="card" style="margin-top:1.1rem"><details><summary><b>Inactive cards (${idle.length})</b> <span class="muted">· no balance and no activity in 12 months</span></summary><div class="list" style="margin-top:.6rem">${idle.map(a => accRow2(a)).join("")}</div></details></div>` : ""}`;
   wireTop(); wireAdd(v); wireAcc(v);
   v.querySelectorAll("[data-cset]").forEach(b => b.onclick = e => { e.stopPropagation(); cardSettings(accMap().get(+b.dataset.cset)); });
   v.querySelectorAll("[data-pay]").forEach(b => b.onclick = e => { e.stopPropagation(); const a = accMap().get(+b.dataset.pay); const c = cardInfo(a); openTx(null, { type: "tr", to: a.id, acc: D().accounts.find(x => kindOf(x) === "bank" && x.cur === a.cur && !x.archived)?.id, amt: c.stmtBal != null ? Math.max(0, -c.stmtBal) : c.owed, desc: a.name + " paid" }); });
@@ -1948,7 +1954,7 @@ function vPeople(v) {
     <section class="grid">
       <div class="card span-6"><div class="card-h"><h2>Owed to me</h2><span class="money pos" style="font-weight:800;font-size:1.15rem">${esc(money(sum(owed), B, { dec: false }))}</span></div><div class="list">${owed.map(personRow).join("") || `<div class="empty">Nobody owes you money</div>`}</div></div>
       <div class="card span-6"><div class="card-h"><h2>I owe</h2><span class="money neg" style="font-weight:800;font-size:1.15rem">${esc(money(sum(owe), B, { dec: false }))}</span></div><div class="list">${owe.map(personRow).join("") || `<div class="empty">You don't owe anyone</div>`}</div></div>
-      <div class="card span-12"><details><summary><b>Settled (${settled.length})</b> <span class="muted">· balance at zero</span></summary><div class="list" style="margin-top:.6rem">${settled.map(accRow2).join("")}</div></details></div>
+      <div class="card span-12"><details><summary><b>Settled (${settled.length})</b> <span class="muted">· balance at zero</span></summary><div class="list" style="margin-top:.6rem">${settled.map(a => accRow2(a)).join("")}</div></details></div>
     </section>`;
   wireTop(); wireAcc(v);
   v.querySelectorAll("[data-settle]").forEach(b => b.onclick = e => { e.stopPropagation(); settleUp(accMap().get(+b.dataset.settle)); });
@@ -4982,10 +4988,11 @@ function vAccount(v) {
         <div class="kv"><span>Opening balance</span><b class="money">${esc(money(a.open, a.cur))}</b><span>Entries</span><b>${all.length.toLocaleString()}</b>${all.length ? `<span>First entry</span><b>${fmtDate(all[0].d)}</b><span>Last entry</span><b>${fmtDate(all.at(-1).d)}</b>` : ""}<span>In net worth</span><b>${a.nw ? "Yes" : "No"}</b></div>
         ${k === "card" ? `<button class="btn" data-goview="cards">Card details</button>` : k === "loan" ? `<button class="btn" id="toLoan">Loan schedule</button>` : DEBT.has(k) ? `<button class="btn primary" id="settle">Settle up</button>` : ""}</div>
       <div class="card span-8"><div class="card-h"><h2>Balance history</h2><span class="note">Month-end</span></div><div class="chart" id="accC"></div></div>
+      ${k === "card" ? `<div class="card span-12" id="cardPanel"></div>` : ""}
       <div class="card span-12" id="recCard"></div>
       <div class="card span-12"><div class="card-h"><h2>Entries</h2><input type="search" id="q" class="search" placeholder="Search this account" value="${esc(P.q)}"></div><div id="recFilt" class="seg recf" role="group" aria-label="Show"></div><div id="reg" class="list"></div></div>
     </section>`;
-  wireTop(); wireAdd(v);
+  wireTop(); wireAdd(v); if (k === "card") { $("#cardPanel").innerHTML = cardPanelHTML(a); $("#cpSet").onclick = () => cardSettings(a); }
   const stm = () => a.recStmt || {}; const diffOf = () => { const s = stm(), m = recMath(a, all); let w = m.recBal; for (const t of all) if (sel.has(t.id)) w += t.v; return { w: rc2(w), d: s.bal == null || s.bal === "" ? null : rc2(+s.bal - w), m }; };
   const paintPanel = () => {
     const m = recMath(a, all), tot = all.length || 1; const { w, d } = diffOf(), s = stm(); const ticked = [...sel].length;
@@ -5055,6 +5062,84 @@ function vAccount(v) {
 @media (hover:none){.rcp{opacity:.5}}
 .rhint{position:absolute;right:.8rem;top:.25rem;font-size:.68rem;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));padding:.1rem .5rem;border-radius:999px}
 @media (max-width:700px){.rmres{grid-template-columns:1fr}.recpop{right:auto;left:0}.rhint{position:static;display:inline-block;margin:0 0 .3rem .7rem}}
+`; document.head.appendChild(st); })();
+
+/* ================= Entry screen helpers: calculator, duplicate; Credit card figures ================= */
+IC.copy = IC.copy || '<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/>';
+IC.calc = IC.calc || '<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/>';
+IC.check = IC.check || '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
+function calc(s) {
+  s = String(s ?? "").trim(); if (!s) return NaN; if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  let x = s.replace(/,/g, "").replace(/[×x]/gi, "*").replace(/÷/g, "/").replace(/[−–]/g, "-");
+  x = x.replace(/(\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)%/g, "$1$2($1*$3/100)").replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
+  if (!/^[0-9+\-*/().\s]+$/.test(x)) return NaN;
+  try { const r = Function('"use strict";return (' + x + ")")(); return Number.isFinite(r) ? Math.round(r * 1e6) / 1e6 : NaN; } catch (e) { return NaN; }
+}
+function calcShow(m) {
+  const el = $("#tAmt", m), o = $("#calcOut", m); if (!el || !o) return; const s = el.value; const isExpr = /[+\-*/×÷x()%−]/i.test(s.replace(/^\s*-/, "")); const r = calc(s);
+  if (isExpr && Number.isFinite(r)) { o.hidden = false; o.textContent = "= " + r.toLocaleString(undefined, { maximumFractionDigits: 2 }); } else o.hidden = true;
+}
+function calcWire(m) {
+  const el = $("#tAmt", m); if (!el) return; calcShow(m);
+  const fire = () => el.dispatchEvent(new Event("input", { bubbles: true }));
+  $("#calcBtn", m).onclick = () => { const pad = $("#calcPad", m); pad.hidden = !pad.hidden; if (pad.hidden) el.focus(); };
+  m.querySelectorAll("[data-ck]").forEach(b => b.onclick = () => { const k = b.dataset.ck;
+    if (k === "C") el.value = ""; else if (k === "⌫") el.value = el.value.slice(0, -1);
+    else if (k === "=") { const r = calc(el.value); if (Number.isFinite(r)) el.value = String(Math.round(r * 100) / 100); }
+    else el.value += k; fire(); });
+}
+function dupOpts(t) {
+  if (t.t === "tin" || t.t === "tout") { const w = t.t === "tout" ? t : txMap().get(t.x), dp = t.t === "tin" ? t : txMap().get(t.x); const s = w || dp;
+    return { type: "tr", acc: w ? w.a : dp.xa, to: dp ? dp.a : w.xa, amt: w ? Math.abs(w.v) : "", desc: s.ds || "", notes: s.n || "" }; }
+  const f = t.oc && t.oa;
+  return { type: t.t === "inc" ? "inc" : "exp", acc: t.a, amt: f ? t.oa : Math.abs(t.v), oc: f ? t.oc : "", ocRate: f ? Math.abs(t.v) / t.oa : "", cat: t.c && t.c.length ? t.c[0][0] : null, desc: t.ds || "", notes: t.n || "", payee: payName(t.p) };
+}
+/* ---------- credit cards ---------- */
+const utilCol = u => u > .7 ? "var(--neg)" : u > .3 ? "var(--accent2)" : "var(--pos)";
+function cardFig(a) {
+  const c = cardInfo(a), m = (x) => esc(money(x, a.cur, { dec: false }));
+  return `<div class="cfig"><div><span>Limit</span><b class="money">${c.limit ? m(c.limit) : "—"}</b></div><div><span>Balance owed</span><b class="money ${c.owed ? "neg" : ""}">${m(c.owed)}</b></div><div><span>Available</span><b class="money ${c.avail != null && c.avail < 0 ? "neg" : "pos"}">${c.avail != null ? m(c.avail) : "—"}</b></div><div><span>Utilised</span><b style="color:${c.util != null ? utilCol(c.util) : "inherit"}">${c.util != null ? (c.util * 100).toFixed(c.util < .1 && c.util > 0 ? 1 : 0) + "%" : "—"}</b></div></div>
+    ${c.util != null ? `<div class="hm-bar" style="height:.5rem;margin:.2rem 0 .6rem"><i style="width:${Math.min(100, c.util * 100).toFixed(1)}%;background:${utilCol(c.util)}"></i></div>` : `<div class="muted" style="font-size:.82rem;margin-bottom:.5rem">Set the credit limit under Card settings to see available credit and utilisation.</div>`}`;
+}
+function cardsStrip(active, { link = false } = {}) {
+  const B = base(); const rows = active.map(a => ({ a, c: cardInfo(a) })); const lim = sumOf(rows.map(r => toBase(r.c.limit, r.a.cur))), owed = sumOf(rows.map(r => toBase(r.c.owed, r.a.cur))); const withLim = rows.filter(r => r.c.limit);
+  const avail = sumOf(withLim.map(r => toBase(r.c.avail, r.a.cur))), util = lim ? sumOf(withLim.map(r => toBase(r.c.owed, r.a.cur))) / sumOf(withLim.map(r => toBase(r.c.limit, r.a.cur))) : null;
+  return `<div class="card span-12 cstrip2"><div class="card-h"><h2>Credit cards</h2>${link ? `<button class="btn sm" data-goview="cards">All cards</button>` : `<span class="note">${rows.length} active card${rows.length === 1 ? "" : "s"}, in ${esc(B)}</span>`}</div>
+    <div class="cfig big"><div><span>Total limit</span><b class="money">${lim ? esc(money(lim, B, { dec: false })) : "—"}</b></div><div><span>Balance owed</span><b class="money neg">${esc(money(owed, B, { dec: false }))}</b></div><div><span>Available</span><b class="money pos">${lim ? esc(money(avail, B, { dec: false })) : "—"}</b></div><div><span>Utilised</span><b style="color:${util != null ? utilCol(util) : "inherit"}">${util != null ? (util * 100).toFixed(0) + "%" : "—"}</b></div></div>
+    ${util != null ? `<div class="hm-bar" style="height:.6rem;margin:.2rem 0 .8rem"><i style="width:${Math.min(100, util * 100).toFixed(1)}%;background:${utilCol(util)}"></i></div>` : ""}
+    <div class="cmini">${rows.sort((x, y) => (y.c.util ?? -1) - (x.c.util ?? -1)).slice(0, 8).map(({ a, c }) => `<div class="cm" data-acc="${a.id}" role="button" tabindex="0"><b>${esc(a.name)}</b><span class="hm-bar"><i style="width:${Math.min(100, (c.util || 0) * 100).toFixed(1)}%;background:${c.util != null ? utilCol(c.util) : "var(--faint)"}"></i></span><em class="money">${c.avail != null ? "Avail " + esc(compact(c.avail, a.cur)) : "no limit set"}</em><i>${c.util != null ? Math.round(c.util * 100) + "%" : ""}</i></div>`).join("")}</div></div>`;
+}
+function cardStatements(a, n = 6) {
+  const c = cardInfo(a); if (!c.sd || !c.lastStmt) return []; const txs = sortedTx().filter(t => t.a === a.id); const out = [];
+  const dueOf = s => { if (!c.dd) return null; const d = new Date(s + "T00:00:00"); let du = new Date(d.getFullYear(), d.getMonth(), c.dd); if (c.dd <= c.sd) du = new Date(d.getFullYear(), d.getMonth() + 1, c.dd); return isoLocal(du); };
+  for (let i = 0; i < n; i++) { const s = addMonths(c.lastStmt, -i), ps = addMonths(s, -1); let bal0 = a.open || 0, spent = 0; for (const t of txs) { if (t.d <= s) bal0 += t.v; if (t.v < 0 && t.t !== "tout" && t.d > ps && t.d <= s) spent -= t.v; } out.push({ s, bal: rc2(bal0), spent: rc2(spent), due: dueOf(s) }); }
+  return out;
+}
+function cardPanelHTML(a) {
+  const c = cardInfo(a), now = todayISO(), m = x => esc(money(x, a.cur)); const daysTo = d => Math.round((Date.parse(d) - Date.parse(now)) / 864e5); const st = cardStatements(a);
+  const dueTxt = c.due ? `${fmtDate(c.due)} · ${daysTo(c.due) < 0 ? `<span class="neg">${-daysTo(c.due)} days overdue</span>` : daysTo(c.due) === 0 ? "today" : `in ${daysTo(c.due)} days`}` : "—";
+  return `<div class="card-h"><h2>Card and statement</h2><button class="btn sm" id="cpSet">Card settings</button></div>${cardFig(a)}
+    ${c.sd ? `<div class="kv2"><div><span>Last statement</span><b>${fmtDate(c.lastStmt)}</b></div><div><span>Statement balance</span><b class="money">${m(Math.max(0, -c.stmtBal))}</b></div><div><span>Payment due</span><b>${dueTxt}</b></div><div><span>Spent this cycle</span><b class="money">${m(c.cycleSpend)}</b></div><div><span>Spent last cycle</span><b class="money">${m(c.prevSpend)}</b></div><div><span>Next statement</span><b>${fmtDate(c.nextStmt)}</b></div></div>
+      <div class="tbl free" style="margin-top:.8rem"><table class="btab"><thead><tr><th>Statement date</th><th class="r">Closing balance</th><th class="r">Spent in cycle</th><th class="r">Payment due</th></tr></thead><tbody>${st.map(x => `<tr><td>${fmtDate(x.s)}</td><td class="r money">${m(Math.max(0, -x.bal))}</td><td class="r money">${m(x.spent)}</td><td class="r">${x.due ? fmtDate(x.due) : "—"}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="muted" style="margin:.4rem 0 0">Set the statement day and payment due day under Card settings to see statement balances, due dates and past statements.</p>`}`;
+}
+function cardsMount(v) {
+  if (!D() || (S2.view !== "home" && S2.view !== "forecast")) return;
+  const now = todayISO(), act = addMonths(now, -12); const active = D().accounts.filter(a => kindOf(a) === "card" && !a.archived && (Math.abs(bal(a.id)) > .005 || (lastActivity().get(a.id) || "") >= act));
+  if (!active.length || !active.some(a => cardInfo(a).limit)) return; const g = v.querySelector("section.grid, .grid"); if (!g) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = cardsStrip(active, { link: true }); const el = tmp.firstElementChild; g.insertBefore(el, g.children[1] || null);
+  el.querySelectorAll("[data-goview]").forEach(x => x.onclick = () => go(x.dataset.goview)); el.querySelectorAll("[data-acc]").forEach(r => r.onclick = () => go2("account", { id: +r.dataset.acc }));
+}
+(function () { const st = document.createElement("style"); st.textContent = `
+.calcbtn{flex:none;align-self:center;width:2.4rem;height:2.4rem;border-radius:.8rem;border:0;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:grid;place-items:center;cursor:pointer}.calcbtn svg{width:1.3rem;height:1.3rem}.calcbtn:hover{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+.calc-out{font:700 1rem var(--f-display);color:var(--accent);padding:.3rem 1rem 0}
+.calc-pad{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin:.5rem 0 .2rem}.calc-pad button{padding:.65rem 0;border-radius:.8rem;border:1px solid var(--line);background:var(--surface2);font:700 1.05rem var(--f-display);cursor:pointer}.calc-pad button:active{background:color-mix(in srgb,var(--accent) 20%,var(--surface2))}.calc-pad .eq{grid-column:span 4;background:var(--accent);color:var(--on-accent);border-color:transparent}
+.form textarea.tnote{background:var(--surface2);border:1px solid var(--line);border-radius:.7rem;padding:.6rem .75rem;color:var(--ink);font-weight:500;width:100%;resize:vertical;min-height:2.6rem}
+.txr{grid-template-columns:auto minmax(0,1fr) auto auto}.txdup{border:0;background:transparent;color:var(--faint);cursor:pointer;width:1.9rem;height:1.9rem;border-radius:50%;display:grid;place-items:center;opacity:0;transition:opacity .15s}.txdup svg{width:1rem;height:1rem}.txr:hover .txdup,.txdup:focus{opacity:1}.txdup:hover{background:var(--surface);color:var(--accent)}@media (hover:none){.txdup{opacity:.55}}
+.cfig{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:.6rem 0 .3rem}.cfig>div{display:flex;flex-direction:column;gap:.05rem;min-width:0}.cfig span{font-size:.7rem;color:var(--muted);font-weight:600}.cfig b{font:800 .95rem var(--f-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cfig.big b{font-size:1.45rem}.cfig.big span{font-size:.78rem}
+.cmini{display:flex;flex-direction:column;gap:.35rem;margin-top:.2rem}.cm{display:grid;grid-template-columns:minmax(0,11rem) 1fr auto 2.6rem;gap:.7rem;align-items:center;padding:.35rem .4rem;border-radius:.7rem;cursor:pointer;font-size:.84rem}.cm:hover{background:var(--surface2)}.cm b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cm em{font-style:normal;color:var(--muted);font-size:.78rem}.cm>i{font-style:normal;font-weight:700;text-align:right}
+.kv2{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.7rem;margin-top:.8rem}.kv2>div{padding:.65rem .8rem;border-radius:.9rem;background:var(--surface2)}.kv2 span{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.kv2 b{font:700 1rem var(--f-display)}
+@media (max-width:700px){.cm{grid-template-columns:minmax(0,1fr) 5rem auto}.cm>i{display:none}.cfig.big b{font-size:1.1rem}}
 `; document.head.appendChild(st); })();
 
 /* ================= home insights ================= */
@@ -5220,7 +5305,7 @@ function renderView(item) {
   const v = $("#view"); const nav = S2._navTo !== undefined && S2._navTo === S2.view; S2._navTo = undefined;
   const views = { home: vHome, appearance: vAppearance, styles: vStyles, data: vDataX, import: vImport, accounts: vAccounts, account: vAccount, transactions: vTransactions, cards: vCards, loans: vLoans, loan: vLoan, people: vPeople, upcoming: vUpcoming, budgets: vBudgets, reports: vReports, gold: vGold, investments: vInvestments, properties: vProperties, kids: vKids, goals: vGoals, forecast: vForecast, currencies: vCurrencies, retire: vRetire, stmt: vStatement };
   S._m = document.querySelectorAll(".scrim").length; scEnter(S2.view);
-  try { (views[S2.view] || vSoon)(v, item); if (typeof scMount === "function") scMount(v); } catch (e) { S._sc = null; throw e; }
+  try { (views[S2.view] || vSoon)(v, item); if (typeof scMount === "function") scMount(v); if (typeof cardsMount === "function") cardsMount(v); } catch (e) { S._sc = null; throw e; }
   if (nav && !document.body.classList.contains("fx-off") && v.animate) v.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
 }
 function topbar(title, sub, actions = "") {
