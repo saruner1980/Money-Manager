@@ -1622,11 +1622,11 @@ function openTx(t, opt = {}) {
 function advance(s) { const n = s.every || 1; if (s.unit === "month") return addMonths(s.next, n); if (s.unit === "year") return addMonths(s.next, 12 * n); const d = new Date(s.next + "T00:00:00"); d.setDate(d.getDate() + (s.unit === "week" ? 7 : 1) * n); return isoLocal(d); }
 
 /* ================= accounts ================= */
-function accRow2(a) {
+function accRow2(a, extra = []) {
   const b = bal(a.id), k = kindOf(a), la = lastActivity().get(a.id);
   return `<div class="row acc-row" data-acc="${a.id}" role="button" tabindex="0"><span class="r-ico k-${k}">${icon({ bank: "wallet", cash: "wallet", card: "card", loan: "loan", receivable: "people", payable: "people", investment: isGold(a) ? "gold" : "invest" }[k])}</span>
     <div class="r-main"><div class="r-t">${esc(a.name)}</div><div class="r-s">${KINDS[k]} · ${esc(ctryName(ctryOf(a)))}${la ? " · last entry " + fmtDate(la) : ""}${!a.nw ? " · not in net worth" : ""}</div></div>
-    <div class="r-amt"><span class="money ${cls(b)}">${esc(money(b, a.cur))}</span>${a.cur !== base() ? `<span class="rb money">≈ ${esc(compact(toBase(b, a.cur), base()))}</span>` : ""}</div></div>`;
+    <div class="r-amt"><span class="money ${cls(b)}">${esc(money(b, a.cur))}</span>${a.cur !== base() ? `<span class="rb money">≈ ${esc(compact(toBase(b, a.cur), base()))}</span>` : ""}${extra.filter(c => c !== a.cur && hasRate(c)).map(c => `<span class="rb money">≈ ${esc(compact(fromTo(b, a.cur, c), c))}</span>`).join("")}</div></div>`;
 }
 function wireAcc(el) { el.querySelectorAll("[data-acc]").forEach(r => { r.onclick = e => { if (e.target.closest("button")) return; go2("account", { id: +r.dataset.acc }); }; r.onkeydown = e => { if (e.key === "Enter") r.click(); }; }); }
 function go2(view, p = {}) { S2.p = p; go(view); }
@@ -1647,9 +1647,9 @@ function vAccounts(v) {
     const byCur = {}; for (const a of l) byCur[a.cur] = (byCur[a.cur] || 0) + Math.abs(toBase(bal(a.id), a.cur)); const absT = Object.values(byCur).reduce((s, x) => s + x, 0) || 1; const open = p.open.includes(g.id);
     return `<div class="gcard ${open ? "open" : ""}" data-gid="${esc(g.id)}" style="--g:${L.col}">
       <div class="plastic gface" role="button" tabindex="0" aria-expanded="${open}"><div class="pl-top"><span class="g-ic">${icon(L.ic, 2)}</span><b>${esc(g.name)}</b>${g.id ? `<button class="ibtn g-edit" data-gedit="${esc(g.id)}" aria-label="Edit group">${icon("settings")}</button>` : ""}</div>
-        <div class="g-tot money">${esc(money(tot, B, { dec: false }))}</div>
+        <div class="g-tot money">${esc(money(tot, B, { dec: false }))}</div>${curChips(tot, showCurs(g))}
         <div class="pl-bot"><span>${l.length} account${l.length === 1 ? "" : "s"}</span><span class="g-cur">${Object.entries(byCur).sort((a, b) => b[1] - a[1]).map(([c, x]) => `<i style="flex:${Math.max(.04, x / absT)}" title="${c} ${Math.round(x / absT * 100)}%"></i>`).join("")}</span><span class="g-chev">${icon("down", 2.4)}</span></div></div>
-      <div class="gbody"><div class="gin"><div class="list">${l.length ? l.map((a, j) => accRow2(a).replace('class="row acc-row"', `class="row acc-row gr" style="--i:${j}"`).replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-mv="${a.id}" aria-label="Move ${esc(a.name)} to another group">Move</button></div></div>`)).join("") : `<div class="empty">No accounts yet. Use Move on any account, or pick this group in Edit account.</div>`}</div></div></div></div>`; };
+      <div class="gbody"><div class="gin"><div class="list">${l.length ? l.map((a, j) => accRow2(a, showCurs(g)).replace('class="row acc-row"', `class="row acc-row gr" style="--i:${j}"`).replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-mv="${a.id}" aria-label="Move ${esc(a.name)} to another group">Move</button></div></div>`)).join("") : `<div class="empty">No accounts yet. Use Move on any account, or pick this group in Edit account.</div>`}</div></div></div></div>`; };
   v.innerHTML = `${topbar("Accounts", `${shown} shown${hidden ? ` · ${hidden} at zero hidden` : ""}`, `${addBtn("Add entry")}`)}
     <div class="toolbar"><div class="seg" role="group" aria-label="Country">${[["all", "All"], ...usedCtrys().map(c => [c.id, c.name])].map(([k, l]) => `<button data-c="${k}" aria-pressed="${p.country === k}">${l}</button>`).join("")}</div>
       <div class="seg" role="group" aria-label="View"><button data-atab="g" aria-pressed="${p.tab !== "c"}">Groups</button><button data-atab="c" aria-pressed="${p.tab === "c"}">Collections${colls().length ? " " + colls().length : ""}</button></div>
@@ -1684,10 +1684,11 @@ function groupEditor(g) {
     <form class="form" novalidate><label class="full">Name<input type="text" id="gnm" value="${esc(g?.name || "")}" placeholder="e.g. Kerala, Savings, Wife's accounts"></label>
       <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Colour</div><div class="swrow">${GRP_COL.map(c => `<button type="button" class="sw ${c === col ? "on" : ""}" data-col="${c}" style="--g:${c}" aria-label="Colour"></button>`).join("")}</div></div>
       <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Icon</div><div class="swrow">${GRP_IC.map(k => `<button type="button" class="icb ${k === ic ? "on" : ""}" data-ic="${k}" aria-label="${k}">${icon(k)}</button>`).join("")}</div></div>
+      ${g && !g.id ? "" : curPickHTML(new Set())}
       ${isNew ? `<div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Accounts in this group</div><div class="fs" style="max-height:11rem">${D().accounts.filter(a => !a.archived).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<label class="tgl"><input type="checkbox" value="${a.id}"> ${esc(a.name)} <span class="faint">${esc(D().groups.find(x => x.id === a.group)?.name || "")}</span></label>`).join("")}</div></div>` : `<div class="full" style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" class="btn sm" id="gUp" ${idx === 0 ? "disabled" : ""}>Move up</button><button type="button" class="btn sm" id="gDn" ${idx === gs.length - 1 ? "disabled" : ""}>Move down</button></div>`}</form>
     <div id="gErr" class="err" hidden></div>
     <div class="m-foot"><div>${isNew ? "" : `<button class="btn danger" id="gDelG">Delete</button>`}</div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="gSv">${isNew ? "Create group" : "Save"}</button></div></div>`,
-  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); const curSel = curPickWire(m, new Set(g?.showCur || []));
     const pv = () => { $("#gpv", m).style.setProperty("--g", col); $("#gpv .g-ic", m).innerHTML = icon(ic, 2); $("#gpn", m).textContent = clean($("#gnm", m).value) || "New group"; };
     m.querySelectorAll("[data-col]").forEach(b => b.onclick = () => { col = b.dataset.col; m.querySelectorAll("[data-col]").forEach(x => x.classList.toggle("on", x === b)); pv(); });
     m.querySelectorAll("[data-ic]").forEach(b => b.onclick = () => { ic = b.dataset.ic; m.querySelectorAll("[data-ic]").forEach(x => x.classList.toggle("on", x === b)); pv(); }); $("#gnm", m).oninput = pv;
@@ -1695,8 +1696,8 @@ function groupEditor(g) {
     if ($("#gUp", m)) { $("#gUp", m).onclick = () => reorder(-1); $("#gDn", m).onclick = () => reorder(1); }
     $("#gSv", m).onclick = () => { const name = clean($("#gnm", m).value); if (!name) { const e = $("#gErr", m); e.hidden = false; e.textContent = "Give the group a name."; return; }
       if (D().groups.some(x => x !== g && x.name.toLowerCase() === name.toLowerCase())) { const e = $("#gErr", m); e.hidden = false; e.textContent = "There's already a group with that name."; return; }
-      if (isNew) { g = { id: "g" + newId(), name, order: gs.length, col, ic }; D().groups.push(stamp(g)); m.querySelectorAll(".fs input:checked").forEach(i => { const a = accMap().get(+i.value); a.group = g.id; stamp(a); }); const P = S2.pa ||= { country: "all", zero: false }; P.open = [...(P.open || []), g.id]; }
-      else { Object.assign(g, { name, col, ic }); stamp(g); }
+      if (isNew) { g = { id: "g" + newId(), name, order: gs.length, col, ic, showCur: [...curSel] }; D().groups.push(stamp(g)); m.querySelectorAll(".fs input:checked").forEach(i => { const a = accMap().get(+i.value); a.group = g.id; stamp(a); }); const P = S2.pa ||= { country: "all", zero: false }; P.open = [...(P.open || []), g.id]; }
+      else { Object.assign(g, { name, col, ic, showCur: [...curSel] }); stamp(g); }
       changed(); close(); renderApp(); toast(isNew ? "Group created" : "Group saved"); };
     if ($("#gDelG", m)) $("#gDelG", m).onclick = () => { const f = $(".m-foot", m).firstElementChild; f.innerHTML = `<span class="neg" style="margin-right:.5rem">${cnt ? `Its ${cnt} accounts move to Other accounts.` : "Delete this group?"}</span><button class="btn danger" id="gDel2">Delete</button>`;
       $("#gDel2", m).onclick = () => { for (const a of D().accounts) if (a.group === g.id) { a.group = ""; stamp(a); } D().groups = D().groups.filter(x => x !== g); tomb("group", g.id); changed(); close(); renderApp(); toast("Group deleted"); }; }; });
@@ -4037,8 +4038,8 @@ function collCards() {
   const B = base(), p = S2.pa; return colls().map((c, i) => { const L = grpLook(c, i + 3), l = collAccs(c).sort((a, b) => a.name.localeCompare(b.name)); const tot = l.reduce((s, a) => s + toBase(bal(a.id), a.cur), 0);
     const byCur = {}; for (const a of l) byCur[a.cur] = (byCur[a.cur] || 0) + Math.abs(toBase(bal(a.id), a.cur)); const absT = Object.values(byCur).reduce((s, x) => s + x, 0) || 1; const key = "c:" + c.id, open = p.open.includes(key);
     return `<div class="gcard ${open ? "open" : ""}" data-gid="${esc(key)}" style="--g:${L.col}"><div class="plastic gface coll" role="button" tabindex="0" aria-expanded="${open}"><div class="pl-top"><span class="g-ic">${icon(L.ic, 2)}</span><b>${esc(c.name)}</b><button class="ibtn g-edit" data-cedit="${esc(c.id)}" aria-label="Edit collection">${icon("settings")}</button></div>
-      <div class="g-tot money">${esc(money(tot, B, { dec: false }))}</div><div class="pl-bot"><span>${l.length} account${l.length === 1 ? "" : "s"}${D().settings.emerColl === c.id ? " · emergency fund" : ""}</span><span class="g-cur">${Object.entries(byCur).sort((a, b) => b[1] - a[1]).map(([cu, x]) => `<i style="flex:${Math.max(.04, x / absT)}" title="${cu}"></i>`).join("")}</span><span class="g-chev">${icon("down", 2.4)}</span></div></div>
-      <div class="gbody"><div class="gin"><div class="list">${l.length ? l.map((a, j) => accRow2(a).replace('class="row acc-row"', `class="row acc-row gr" style="--i:${j}"`).replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-crm="${esc(c.id)}:${a.id}">Remove</button></div></div>`)).join("") : `<div class="empty">No accounts yet. Use the ⚙ to add some.</div>`}</div></div></div></div>`; }).join("") + `<button class="gcard gadd" id="newColl"><span>${icon("plus", 2.2)}</span><b>New collection</b><span class="muted">Any accounts, even ones already in other collections</span></button>`;
+      <div class="g-tot money">${esc(money(tot, B, { dec: false }))}</div>${curChips(tot, showCurs(c))}<div class="pl-bot"><span>${l.length} account${l.length === 1 ? "" : "s"}${D().settings.emerColl === c.id ? " · emergency fund" : ""}</span><span class="g-cur">${Object.entries(byCur).sort((a, b) => b[1] - a[1]).map(([cu, x]) => `<i style="flex:${Math.max(.04, x / absT)}" title="${cu}"></i>`).join("")}</span><span class="g-chev">${icon("down", 2.4)}</span></div></div>
+      <div class="gbody"><div class="gin"><div class="list">${l.length ? l.map((a, j) => accRow2(a, showCurs(c)).replace('class="row acc-row"', `class="row acc-row gr" style="--i:${j}"`).replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-crm="${esc(c.id)}:${a.id}">Remove</button></div></div>`)).join("") : `<div class="empty">No accounts yet. Use the ⚙ to add some.</div>`}</div></div></div></div>`; }).join("") + `<button class="gcard gadd" id="newColl"><span>${icon("plus", 2.2)}</span><b>New collection</b><span class="muted">Any accounts, even ones already in other collections</span></button>`;
 }
 function collEditor(c) {
   const isNew = !c; const idx = isNew ? colls().length : colls().indexOf(c); const L = grpLook(c || { name: "" }, idx + 3); let col = L.col, ic = L.ic; const sel = new Set(c?.accs || []);
@@ -4049,15 +4050,16 @@ function collEditor(c) {
       <div class="full"><div class="swrow">${GRP_COL.map(x => `<button type="button" class="sw ${x === col ? "on" : ""}" data-col="${x}" style="--g:${x}" aria-label="Colour"></button>`).join("")}</div></div>
       <div class="full"><div class="swrow">${GRP_IC.map(k => `<button type="button" class="icb ${k === ic ? "on" : ""}" data-ic="${k}" aria-label="${k}">${icon(k)}</button>`).join("")}</div></div>
       <div class="full"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem"><b style="font-size:.85rem">Accounts</b><input type="search" id="cq" class="search" placeholder="Search" style="flex:1;padding:.4rem .6rem"></div><div class="fs" style="max-height:16rem" id="cl">${accs.map(a => `<label class="tgl" data-n="${esc(a.name.toLowerCase())}"><input type="checkbox" value="${a.id}" ${sel.has(a.id) ? "checked" : ""}> ${esc(a.name)} <span class="faint">${esc(compact(bal(a.id), a.cur))} · ${esc(groupMap().get(a.group)?.name || "No group")}</span></label>`).join("")}</div></div>
+      ${curPickHTML(new Set())}
       <label class="tgl full"><input type="checkbox" id="cem" ${D().settings.emerColl && D().settings.emerColl === c?.id ? "checked" : ""}> Use as my emergency fund in Home's health check</label></form>
     <div id="cErr" class="err" hidden></div><div class="m-foot"><div>${isNew ? "" : `<button class="btn danger" id="cDel">Delete</button>`}</div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="cSv">${isNew ? "Create" : "Save"}</button></div></div>`,
-  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); const curSel = curPickWire(m, new Set(c?.showCur || []));
     const pv = () => { $("#gpv", m).style.setProperty("--g", col); $("#gpv .g-ic", m).innerHTML = icon(ic, 2); $("#gpn", m).textContent = clean($("#cnm", m).value) || "New collection"; const ids = [...m.querySelectorAll("#cl input:checked")].map(i => +i.value); $("#gpc", m).textContent = ids.length + " accounts"; $("#gpt", m).textContent = compact(ids.reduce((s, id) => { const a = accMap().get(id); return s + toBase(bal(id), a.cur); }, 0), base()); };
     m.querySelectorAll("[data-col]").forEach(b => b.onclick = () => { col = b.dataset.col; m.querySelectorAll("[data-col]").forEach(x => x.classList.toggle("on", x === b)); pv(); });
     m.querySelectorAll("[data-ic]").forEach(b => b.onclick = () => { ic = b.dataset.ic; m.querySelectorAll("[data-ic]").forEach(x => x.classList.toggle("on", x === b)); pv(); });
     $("#cnm", m).oninput = pv; m.querySelectorAll("#cl input").forEach(i => i.onchange = pv); $("#cq", m).oninput = e => { const q = e.target.value.toLowerCase(); m.querySelectorAll("#cl label").forEach(l => l.hidden = q && !l.dataset.n.includes(q)); }; pv();
     $("#cSv", m).onclick = () => { const name = clean($("#cnm", m).value); if (!name) { const e = $("#cErr", m); e.hidden = false; e.textContent = "Give the collection a name."; return; }
-      const ids = [...m.querySelectorAll("#cl input:checked")].map(i => +i.value); if (isNew) { c = { id: "c" + newId(), name, col, ic, accs: ids }; colls().push(stamp(c)); const P = S2.pa ||= { country: "all", zero: false }; P.open = [...(P.open || []), "c:" + c.id]; } else { Object.assign(c, { name, col, ic, accs: ids }); stamp(c); }
+      const ids = [...m.querySelectorAll("#cl input:checked")].map(i => +i.value); if (isNew) { c = { id: "c" + newId(), name, col, ic, accs: ids, showCur: [...curSel] }; colls().push(stamp(c)); const P = S2.pa ||= { country: "all", zero: false }; P.open = [...(P.open || []), "c:" + c.id]; } else { Object.assign(c, { name, col, ic, accs: ids, showCur: [...curSel] }); stamp(c); }
       if ($("#cem", m).checked) D().settings.emerColl = c.id; else if (D().settings.emerColl === c.id) delete D().settings.emerColl; changed(); close(); renderApp(); toast(isNew ? "Collection created" : "Collection saved"); };
     if ($("#cDel", m)) $("#cDel", m).onclick = () => { D().colls = colls().filter(x => x !== c); tomb("coll", c.id); if (D().settings.emerColl === c.id) delete D().settings.emerColl; if (D().retire?.coll === c.id) delete D().retire.coll; changed(); close(); renderApp(); toast("Collection deleted"); }; }, true);
 }
@@ -4925,6 +4927,31 @@ function daily0(P, bs, dim) { const d = budDaily(P, bs, dim), out = []; d.reduce
 .ins .btn.sm{margin-top:.45rem;padding:.25rem .7rem;font-size:.76rem}
 .bc,.ins{min-width:0}.bcm{overflow:hidden}
 @media (max-width:700px){.budg{grid-template-columns:minmax(0,1fr)}}
+`; document.head.appendChild(st); })();
+
+/* ================= Group / collection: show balances in chosen currencies ================= */
+const hasRate = c => { const x = curMap().get(c); return !!(x && (x.rate > 0 || c === ANCHOR)); };
+function showCurs(o) { return ((o && o.showCur) || []).filter(c => c !== base() && curMap().has(c)); }
+function curChips(totBase, codes) {
+  if (!codes.length) return "";
+  return `<div class="gchips">${codes.map(c => hasRate(c) ? `<span class="gchip" title="${esc(c)}"><em>${esc(c)}</em> <b class="money">${esc(money(fromTo(totBase, base(), c), c, { dec: false }))}</b></span>` : `<span class="gchip off" title="No exchange rate yet. Set one under Currencies.">${esc(c)} · no rate</span>`).join("")}</div>`;
+}
+function curPickHTML(sel) {
+  return `<div class="full" id="curSec"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.2rem">Also show the balance in</div><div class="muted" style="font-size:.76rem;margin-bottom:.45rem">Tick any currencies. The card then shows its total (and each account) in them too, at your current exchange rates.</div><div class="swrow" id="curChips" style="flex-wrap:wrap"></div>
+    <select id="curAdd" style="margin-top:.5rem"><option value="">+ Add another currency…</option>${Object.entries(CUR_INFO).filter(([k]) => !curMap().has(k)).map(([k, v]) => `<option value="${k}">${k} · ${esc(v[0])}</option>`).join("")}</select></div>`;
+}
+function curPickWire(m, sel) {
+  const paint = () => { $("#curChips", m).innerHTML = fx().filter(c => c.code !== base()).map(c => `<button type="button" class="lchip ${sel.has(c.code) ? "acc" : ""}" data-cc="${esc(c.code)}">${sel.has(c.code) ? "✓ " : ""}${esc(c.code)}${c.rate > 0 || c.code === ANCHOR ? "" : " (no rate)"}</button>`).join("") || `<span class="muted">Only ${esc(base())} in your ledger. Add another below.</span>`;
+    $("#curChips", m).querySelectorAll("[data-cc]").forEach(b => b.onclick = () => { sel.has(b.dataset.cc) ? sel.delete(b.dataset.cc) : sel.add(b.dataset.cc); paint(); }); };
+  paint();
+  $("#curAdd", m).onchange = async e => { const code = e.target.value; if (!code) return; const i = CUR_INFO[code]; const d = D(); fx(); if (!d.currencies.some(c => c.code === code)) d.currencies.push({ code, name: i[0], sym: i[1], rate: 0 });
+    sel.add(code); changedNoSave(); e.target.querySelector(`option[value="${code}"]`)?.remove(); e.target.value = ""; paint();
+    try { const r = await fetchFX(); const x = d.currencies.find(c => c.code === code); if (x && r.rates[code] > 0 && !(x.rate > 0)) { x.rate = r.rates[code]; changed(); paint(); toast(`${code} rate set from live prices`); } else if (!(x.rate > 0)) toast(`No live rate for ${code}. Set it under Currencies.`); } catch (er) { toast(`Couldn't fetch a ${code} rate. Set it under Currencies.`); } };
+  return sel;
+}
+(function () { const st = document.createElement("style"); st.textContent = `
+.gchips{display:flex;flex-wrap:wrap;gap:.3rem .45rem;position:relative;z-index:1;margin:.15rem 0 .1rem}
+.gchip{display:inline-flex;align-items:baseline;gap:.3rem;padding:.12rem .55rem;border-radius:999px;background:rgba(255,255,255,.2);backdrop-filter:blur(4px);font-size:.82rem;color:#fff;white-space:nowrap}.gchip em{font-style:normal;font-size:.68rem;font-weight:700;opacity:.8;letter-spacing:.04em}.gchip b{font-weight:700}.gchip.off{opacity:.7;font-size:.74rem}
 `; document.head.appendChild(st); })();
 
 /* ================= home insights ================= */
