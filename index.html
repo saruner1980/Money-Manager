@@ -1559,7 +1559,9 @@ function openTx(t, opt = {}) {
       <label id="toWrap" hidden>To account<select id="tTo"><option value="">Choose…</option>${accOpts(I.to)}</select></label>
       <label id="trRWrap" hidden><span>Rate <span id="trRLab" class="faint"></span></span><input type="number" id="tTrRate" step="any" min="0" inputmode="decimal"></label>
       <label id="recvWrap" hidden><span>Amount received <span id="curLab2" class="faint"></span></span><input type="number" id="tRecv" step="0.01" min="0" inputmode="decimal" value="${I.recv}"></label>
-      <label id="catWrap" class="full"><span>Category${split ? ` <span class="faint">(split across ${t.c.length})</span>` : ""}</span><select id="tCat"></select></label>
+      <label id="catWrap" class="full"><span>Category</span><select id="tCat"></select></label>
+      <div id="splitWrap" class="full" hidden><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Split across categories</div><div id="splitRows"></div><div class="splitfoot"><button type="button" class="btn sm" id="splitAdd">+ Add category</button><span id="splitRem" class="splitrem"></span></div></div>
+      <button type="button" class="btn sm ghost full" id="splitTog" style="justify-self:start">Split across several categories</button>
       <label class="full">Description<input type="text" id="tDesc" value="${esc(I.desc)}"></label>
       <label class="full">Note<textarea id="tNotes" rows="2" class="tnote">${esc(I.notes)}</textarea></label>
       <label>Added by<select id="tBy">${members().map(m => `<option ${m.name === I.by ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></label>
@@ -1570,9 +1572,18 @@ function openTx(t, opt = {}) {
   (m, close) => {
     m.querySelectorAll("[data-x]").forEach(b => b.onclick = close);
     let touched = { cat: !!I.cat, acc: !!opt.acc || !!t || !!sch };
+    let splitOn = !!split; const rate0 = I.ocRate ? +I.ocRate : 1; let rows = split ? t.c.map(([c, x]) => ({ c, a: Math.round(Math.abs(x) / rate0 * 100) / 100 })) : [];
+    const splitTotal = () => calc($("#tAmt", m).value) || 0;
+    const renderSplit = () => { const kind = type === "inc" ? "inc" : "exp"; $("#splitRows", m).innerHTML = rows.map((r, i) => `<div class="splitrow"><select data-sc="${i}">${catOpts(kind, r.c)}</select><input type="number" step="0.01" min="0" inputmode="decimal" data-sa="${i}" value="${r.a === "" ? "" : r.a}" placeholder="0.00"><button type="button" class="ibtn" data-sx="${i}" aria-label="Remove" ${rows.length <= 2 ? "disabled" : ""}>✕</button></div>`).join("");
+      $("#splitRows", m).querySelectorAll("[data-sc]").forEach(x => x.onchange = () => { rows[+x.dataset.sc].c = +x.value || null; });
+      $("#splitRows", m).querySelectorAll("[data-sa]").forEach(x => x.oninput = () => { rows[+x.dataset.sa].a = x.value === "" ? "" : +x.value; splitRem(); });
+      $("#splitRows", m).querySelectorAll("[data-sx]").forEach(x => x.onclick = () => { rows.splice(+x.dataset.sx, 1); renderSplit(); }); splitRem(); };
+    const splitRem = () => { const left = Math.round((splitTotal() - rows.reduce((s, r) => s + (+r.a || 0), 0)) * 100) / 100; const el = $("#splitRem", m); el.textContent = left === 0 ? "Adds up" : left > 0 ? `${left.toFixed(2)} left to assign` : `${(-left).toFixed(2)} over`; el.className = "splitrem " + (left === 0 ? "ok" : "bad"); };
+    $("#splitAdd", m).onclick = () => { const left = Math.round((splitTotal() - rows.reduce((s, r) => s + (+r.a || 0), 0)) * 100) / 100; rows.push({ c: null, a: left > 0 ? left : "" }); renderSplit(); };
+    $("#splitTog", m).onclick = () => { if (!splitOn) { const first = +$("#tCat", m).value || null; const tot = splitTotal(); rows = [{ c: first, a: tot ? Math.round(tot * 50) / 100 : "" }, { c: null, a: tot ? Math.round((tot - Math.round(tot * 50) / 100) * 100) / 100 : "" }]; splitOn = true; } else { $("#tCat", m).value = rows[0]?.c || ""; touched.cat = true; splitOn = false; } sync(); };
     const sync = () => {
       const isTr = type === "tr", adj = t && t.t === "adj";
-      $("#toWrap", m).hidden = !isTr; $("#payWrap", m).hidden = isTr || adj; $("#catWrap", m).hidden = isTr || adj;
+      $("#toWrap", m).hidden = !isTr; $("#payWrap", m).hidden = isTr || adj; $("#catWrap", m).hidden = isTr || adj || splitOn; $("#splitWrap", m).hidden = isTr || adj || !splitOn; $("#splitTog", m).hidden = isTr || adj; $("#splitTog", m).textContent = splitOn ? "Use a single category" : "Split across several categories"; if (splitOn && !isTr && !adj) renderSplit();
       $("#accLab", m).textContent = isTr ? "From account" : "Account";
       const ca = accMap().get(+$("#tAcc", m).value)?.cur || "", cb = accMap().get(+$("#tTo", m).value)?.cur || "";
       const oc0 = $("#tCur", m).value || I.oc || ca; $("#tCur", m).innerHTML = fx().map(c => `<option ${c.code === oc0 ? "selected" : ""}>${c.code}</option>`).join("");
@@ -1581,7 +1592,7 @@ function openTx(t, opt = {}) {
       $("#curLab", m).textContent = foreign ? oc : ca; $("#curLab2", m).textContent = cb;
       const cross = isTr && ca && cb && ca !== cb; $("#recvWrap", m).hidden = !cross; $("#trRWrap", m).hidden = !cross;
       if (cross) { $("#trRLab", m).textContent = `(1 ${ca} = ? ${cb})`; const R = $("#tTrRate", m), amtN = calc($("#tAmt", m).value) || 0, rv = parseFloat($("#tRecv", m).value) || 0; if (!R.value) { if (rv && amtN) R.value = +(rv / amtN).toFixed(6); else { R.value = +fromTo(1, ca, cb).toFixed(6); R.dataset.auto = 1; } } if (!$("#tRecv", m).value && amtN) $("#tRecv", m).value = (amtN * (parseFloat(R.value) || fromTo(1, ca, cb))).toFixed(2); }
-      if (!isTr && !adj) { const cur = $("#tCat", m).value; const keep = cur && cur !== "__keep" ? +cur : I.cat; $("#tCat", m).innerHTML = (split ? `<option value="__keep">Keep the split</option>` : "") + catOpts(type === "inc" ? "inc" : "exp", split ? null : keep); }
+      if (!isTr && !adj) { const cur = $("#tCat", m).value; const keep = cur ? +cur : I.cat; $("#tCat", m).innerHTML = catOpts(type === "inc" ? "inc" : "exp", keep); }
     };
     const fillFrom = last => { if (!last) return; if (!touched.cat && last.c?.length === 1) { I.cat = last.c[0][0]; $("#tCat", m).value = ""; } if (!touched.acc) $("#tAcc", m).value = last.a; if (last.t !== type && (last.t === "exp" || last.t === "inc")) { type = last.t; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); } sync(); if (!touched.cat && last.c?.length === 1) $("#tCat", m).value = last.c[0][0]; };
     m.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { type = b.dataset.ty; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); sync(); });
@@ -1610,8 +1621,8 @@ function openTx(t, opt = {}) {
       } else {
         const ca = accMap().get(acc).cur, oc = $("#tCur", m).value || ca, foreign = oc !== ca; const rate = foreign ? parseFloat($("#tRate", m).value) : 1; if (foreign && !(rate > 0)) return err("Enter the exchange rate.");
         const sel = $("#tCat", m).value, pid = payeeId($("#tPay", m).value), v = (type === "inc" ? 1 : -1) * Math.round(amt * rate * 100) / 100; const fxf = foreign ? { oc, oa: amt } : {};
-        let c = sel === "__keep" && split ? t.c.map(x => [...x]) : (sel ? [[+sel, v]] : null);
-        if (c && sel === "__keep") { const tot = c.reduce((s, x) => s + x[1], 0); if (Math.abs(tot - v) > .01) c = c.map(([k, x]) => [k, Math.round(x * v / (tot || v) * 100) / 100]); }
+        let c = sel ? [[+sel, v]] : null;
+        if (splitOn) { const used = rows.filter(r => +r.a > 0); const sumA = Math.round(used.reduce((s, r) => s + +r.a, 0) * 100) / 100; if (used.length < 2) return err("Add at least two rows with an amount, or use a single category."); if (used.some(r => !r.c)) return err("Choose a category for every row of the split."); if (Math.abs(sumA - amt) > .005) return err(`The split adds up to ${sumA.toFixed(2)} but the amount is ${amt.toFixed(2)}.`); const sg = type === "inc" ? 1 : -1; c = used.map(r => [r.c || 0, sg * Math.round(r.a * rate * 100) / 100]); const diff = Math.round((v - c.reduce((s, x) => s + x[1], 0)) * 100) / 100; if (diff) c[c.length - 1][1] = Math.round((c.at(-1)[1] + diff) * 100) / 100; }
         if (t && (t.t === "exp" || t.t === "inc")) { Object.assign(t, { t: type, a: acc, d: date, v, p: pid, ds: desc, n: notes, c }, fxf); if (!foreign) { delete t.oc; delete t.oa; } delete t.pending; stamp(t, by); }
         else { if (t) delTx(t); D().tx.push(stamp({ id: newId(), t: type, a: acc, d: date, v, p: pid, ds: desc, n: notes, c, ...fxf }, by)); }
       }
@@ -1776,7 +1787,7 @@ function vTransactions(v) {
   const p = S2.pt ||= { q: "", acc: "", cat: "", type: "", ctry: "", by: "", from: "", to: "", lim: 80 };
   v.innerHTML = `${topbar("Transactions", `${D().tx.length.toLocaleString()} entries · transfers show once, from the paying account`, `<button class="btn" id="csv">Export CSV</button>${addBtn("Add entry")}`)}
     <div class="card"><div class="filters">
-      <input type="search" id="fq" class="search" placeholder="Search payee, note, category" value="${esc(p.q)}">
+      <input type="search" id="fq" class="search" placeholder="Search text or amount: 500, 100-300, >1000" value="${esc(p.q)}">
       <select id="facc"><option value="">All accounts</option>${accOpts(+p.acc || null, true)}</select>
       <select id="fcat"><option value="">All categories</option><optgroup label="Spending">${catOpts("exp", +p.cat).replace('<option value="">No category</option>', "")}</optgroup><optgroup label="Income">${catOpts("inc", +p.cat).replace('<option value="">No category</option>', "")}</optgroup></select>
       <select id="ftype"><option value="">All types</option><option value="exp">Spending</option><option value="inc">Income</option><option value="tr">Transfers</option><option value="adj">Adjustments</option></select>
@@ -1790,7 +1801,7 @@ function vTransactions(v) {
       if (p.type && (p.type === "tr" ? !(t.t === "tout" || t.t === "tin") : t.t !== p.type)) return false; if (p.from && t.d < p.from) return false; if (p.to && t.d > p.to) return false;
       if (p.ctry && ctryOf(accMap().get(t.a)) !== p.ctry) return false; if (p.by && t.by !== p.by) return false;
       if (cs && !(t.c || []).some(([c]) => cs.has(c))) return false;
-      if (q && !(txLabel(t) + " " + t.ds + " " + t.n + " " + txCatLabel(t) + " " + accName(t.a)).toLowerCase().includes(q)) return false; return true; }).reverse(); };
+      if (q && !txMatchQ(t, q, accName(t.a))) return false; return true; }).reverse(); };
   const draw = () => { const f = filt(); let i = 0, o = 0; for (const t of f) { if (t.t === "tout" || t.t === "tin" || t.t === "adj") continue; const x = toBase(t.v, accMap().get(t.a)?.cur); if (x > 0) i += x; else o += x; }
     $("#sum").innerHTML = `<b>${f.length.toLocaleString()}</b> entries · money in <b class="money pos">${esc(compact(i, base()))}</b> · money out <b class="money neg">${esc(compact(-o, base()))}</b>`;
     $("#list").innerHTML = f.slice(0, p.lim).map(t => txLine(t)).join("") + (f.length > p.lim ? `<div class="more"><button class="btn" id="more">Show more (${(f.length - p.lim).toLocaleString()} older)</button></div>` : "") || `<div class="empty">No entries match these filters</div>`;
@@ -3972,8 +3983,8 @@ function vStatement(v) {
         <div class="card span-3x"><div class="muted">Already in the app</div><div class="bigval">${cnt.dup}</div><span class="muted" style="font-size:.78rem">skipped unless you tick them</span></div>
         <div class="card span-3x"><div class="muted">Money in / out</div><div class="bigval money" style="font-size:1.25rem"><span class="pos">+${esc(compact(inS, a.cur))}</span> <span class="neg">−${esc(compact(outS, a.cur))}</span></div><span class="muted" style="font-size:.78rem">of the selected rows</span></div>
         <div class="card span-3x"><div class="muted">Need a category</div><div class="bigval ${cnt.nocat ? "neg" : "pos"}">${cnt.nocat}</div><span class="muted" style="font-size:.78rem">${cnt.tr} transfers found</span></div>
-        <div class="card span-12"><div class="toolbar" style="margin-bottom:.6rem"><div class="seg scrollx stf">${[["all", "All"], ["new", "New"], ["nocat", "No category"], ["tr", "Transfers"], ["dup", "Duplicates"]].map(([k, l]) => `<button data-f="${k}" aria-pressed="${F === k}">${l} <span class="faint">${cnt[k]}</span></button>`).join("")}</div><span class="grow"></span><button class="btn sm ghost" id="stAllOn">Tick all shown</button><button class="btn sm ghost" id="stAllOff">Untick all shown</button></div>
-          <div class="stl">${vis.map(([r, i]) => `<div class="str ${r.on ? "" : "off"} ${r.dup ? "dup" : ""}" data-i="${i}"><label class="tgl"><input type="checkbox" class="sto" ${r.on ? "checked" : ""}></label>
+        <div class="card span-12"><div class="toolbar" style="margin-bottom:.6rem"><div class="seg scrollx stf">${[["all", "All"], ["new", "New"], ["nocat", "No category"], ["tr", "Transfers"], ["dup", "Duplicates"]].map(([k, l]) => `<button data-f="${k}" aria-pressed="${F === k}">${l} <span class="faint">${cnt[k]}</span></button>`).join("")}</div><span class="grow"></span><button class="btn sm ghost" id="stAllOn">Tick all shown</button><button class="btn sm ghost" id="stAllOff">Untick all shown</button><input type="search" id="stQ" class="search" placeholder="Search description or amount: 500, 100-300, >1000" style="min-width:15rem;max-width:22rem" value="${esc(st.q || "")}"><button class="btn sm" id="stXl" type="button">Export Excel</button></div>
+          <div class="stl">${vis.map(([r, i]) => `<div class="str ${r.on ? "" : "off"} ${r.dup ? "dup" : ""}" data-i="${i}" data-v="${r.v}" data-s="${esc((r.desc || "") + " " + (r.payee || "") + " " + fmtDate(r.d))}"><label class="tgl"><input type="checkbox" class="sto" ${r.on ? "checked" : ""}></label>
             <div class="std"><b>${fmtDate(r.d)}</b><span class="money ${cls(r.v)}">${esc(money(r.v, a.cur))}</span></div>
             <div class="stm"><div class="stdesc" title="${esc(r.desc)}">${esc(r.desc || "—")}</div><div class="faint stw">${esc(r.why || "")}${r.dup ? ` · ${esc(r.dup.ds || payName(r.dup.p) || "")}` : ""}</div></div>
             <div class="stc">${r.dup ? "" : `<select class="stt"><option value="${r.v < 0 ? "exp" : "inc"}" ${r.type !== "tr" ? "selected" : ""}>${r.v < 0 ? "Spending" : "Income"}</option><option value="tr" ${r.type === "tr" ? "selected" : ""}>Transfer</option></select>
@@ -3982,6 +3993,11 @@ function vStatement(v) {
           <datalist id="payees">${D().payees.slice().sort((x, y) => x.name.localeCompare(y.name)).map(p => `<option value="${esc(p.name)}">`).join("")}</datalist>
           <div class="wiz-foot"><button class="btn" id="stBack">${st.rows ? "Back to columns" : "Choose another file"}</button><button class="btn primary" id="stGo" ${sel.length ? "" : "disabled"}>Import ${sel.length} entries</button></div></div></section>`;
     wire();
+    const stFilter = () => { const q = ($("#stQ").value || "").trim().toLowerCase(); st.q = q; const spec = amtSpec(q); let shown = 0; v.querySelectorAll(".str").forEach(el => { const val = Math.abs(+el.dataset.v), ok = !q || el.dataset.s.toLowerCase().includes(q) || (spec && spec(val)); el.hidden = !ok; if (ok) shown++; }); };
+    $("#stQ").oninput = stFilter; stFilter();
+    $("#stXl").onclick = () => { const rows = vis.filter(([r, i]) => { const el = v.querySelector(`.str[data-i="${i}"]`); return el && !el.hidden; }); if (!rows.length) return toast("No lines to export"); const catN = r => r.type === "tr" ? "Transfer" : (r.cat ? catName(+r.cat) : "");
+      saveXlsx(`statement-${(st.file || "lines").replace(/\.[^.]+$/, "").replace(/[^\w\- ]+/g, "")}.xlsx`, [{ name: "Statement lines", cols: [{ h: "Date", w: 13, t: "date" }, { h: "Description", w: 44, t: "text" }, { h: `Amount (${a.cur})`, w: 16, t: "num" }, { h: "Status", w: 22, t: "text" }, { h: "Import as", w: 14, t: "text" }, { h: "Category", w: 26, t: "text" }, { h: "Payee", w: 24, t: "text" }, { h: "Selected", w: 10, t: "text" }], rows: rows.map(([r]) => [r.d, r.desc || "", r.v, r.dup ? "Already in the app" : "New", r.type === "tr" ? "Transfer" : r.v < 0 ? "Spending" : "Income", catN(r), r.payee || "", r.on ? "Yes" : "No"]), total: { label: "Total of lines shown", sum: [2] } },
+        xlSummary("Statement file", [["File", st.file || ""], ["Account", a.name], ["Currency", a.cur], ["Lines in file", P.length], ["Lines exported", rows.length], ["New", cnt.new], ["Already in the app", cnt.dup], ["Money in (shown)", Math.round(rows.reduce((s, [r]) => s + (r.v > 0 ? r.v : 0), 0) * 100) / 100], ["Money out (shown)", Math.round(rows.reduce((s, [r]) => s + (r.v < 0 ? r.v : 0), 0) * 100) / 100], ["Exported on", todayISO()]])]); };
     v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { st.f = b.dataset.f; renderApp(); });
     const rowOf = el => P[+el.closest(".str").dataset.i];
     const refreshTop = () => { const s2 = P.filter(r => r.on); $("#stGo").textContent = `Import ${s2.length} entries`; $("#stGo").disabled = !s2.length; };
@@ -4990,9 +5006,9 @@ function vAccount(v) {
       <div class="card span-8"><div class="card-h"><h2>Balance history</h2><span class="note">Month-end</span></div><div class="chart" id="accC"></div></div>
       ${k === "card" ? `<div class="card span-12" id="cardPanel"></div>` : ""}
       <div class="card span-12" id="recCard"></div>
-      <div class="card span-12"><div class="card-h"><h2>Entries</h2><input type="search" id="q" class="search" placeholder="Search this account" value="${esc(P.q)}"></div><div id="recFilt" class="seg recf" role="group" aria-label="Show"></div><div id="reg" class="list"></div></div>
+      <div class="card span-12"><div class="card-h"><h2>Entries</h2><div class="row-btns" style="flex:1;justify-content:flex-end;flex-wrap:nowrap"><input type="search" id="q" class="search" placeholder="Search text or amount: 500, 100-300, >1000" value="${esc(P.q)}" style="max-width:24rem"><button class="btn" id="xlReg" type="button">${icon("download", 1.8)}Export Excel</button></div></div><div id="recFilt" class="seg recf" role="group" aria-label="Show"></div><div id="reg" class="list"></div></div>
     </section>`;
-  wireTop(); wireAdd(v); if (k === "card") { $("#cardPanel").innerHTML = cardPanelHTML(a); $("#cpSet").onclick = () => cardSettings(a); }
+  wireTop(); wireAdd(v); if (k === "card") { $("#cardPanel").innerHTML = cardPanelHTML(a); $("#cpSet").onclick = () => cardSettings(a); $("#cpXl").onclick = () => xlCardStatements(a); }
   const stm = () => a.recStmt || {}; const diffOf = () => { const s = stm(), m = recMath(a, all); let w = m.recBal; for (const t of all) if (sel.has(t.id)) w += t.v; return { w: rc2(w), d: s.bal == null || s.bal === "" ? null : rc2(+s.bal - w), m }; };
   const paintPanel = () => {
     const m = recMath(a, all), tot = all.length || 1; const { w, d } = diffOf(), s = stm(); const ticked = [...sel].length;
@@ -5019,11 +5035,13 @@ function vAccount(v) {
   };
   const paintPanel2 = () => { const { w, d } = diffOf(); const el = $(".rmres", $("#recCard")); if (!el) return; el.className = "rmres " + (d == null ? "" : d === 0 ? "ok" : "bad"); el.querySelector(".rd b").textContent = d == null ? "—" : money(d, a.cur, { sign: true }); el.children[0].querySelector("b").textContent = money(w, a.cur); el.children[1].querySelector("b").textContent = stm().bal === "" || stm().bal == null ? "—" : money(+stm().bal, a.cur); el.children[0].querySelector("span").textContent = `Reconciled so far + ticked (${sel.size})`; const hint = el.nextElementSibling; if (hint) hint.textContent = d == null ? "Enter your statement's closing balance, then tick the entries that appear on the statement." : d === 0 ? "It matches. Reconcile the ticked entries to lock them in." : "Tick or untick entries until the difference is zero. Entries that would close the gap exactly are flagged below."; const gb = $("#sGo", $("#recCard")); if (gb) { gb.textContent = `${d === 0 ? "Reconcile" : "Reconcile anyway"} ${sel.size} ticked`; gb.disabled = !sel.size; } draw(); };
   const flt = { all: () => true, pend: t => t.pending, unrec: t => !t.pending && !t.rec, rec: t => !t.pending && t.rec };
+  let lastF = [];
   const draw = () => {
     const q = P.q.toLowerCase(); const cnt = { all: all.length, pend: 0, unrec: 0, rec: 0 }; all.forEach(t => { if (t.pending) cnt.pend++; else if (t.rec) cnt.rec++; else cnt.unrec++; });
     $("#recFilt").innerHTML = [["all", "All"], ["unrec", "Unreconciled"], ["pend", "Pending"], ["rec", "Reconciled"]].map(([k2, l]) => `<button data-rf="${k2}" aria-pressed="${P.rf === k2}">${l} <em>${cnt[k2].toLocaleString()}</em></button>`).join("");
     $("#recFilt").querySelectorAll("[data-rf]").forEach(x => x.onclick = () => { P.rf = x.dataset.rf; P.lim = 60; draw(); });
-    const f = all.slice().reverse().filter(t => flt[P.rf](t) && (!q || (txLabel(t) + " " + t.ds + " " + t.n + " " + txCatLabel(t)).toLowerCase().includes(q)));
+    const f = all.slice().reverse().filter(t => flt[P.rf](t) && (!q || txMatchQ(t, q)));
+    lastF = f;
     const { d } = P.rm ? diffOf() : { d: null }; const dt = P.rm ? (stm().date || "") : "";
     $("#reg").innerHTML = f.slice(0, P.lim).map(t => { const s2 = txSt(t), on = P.rm ? sel.has(t.id) : s2 === "r"; let hint = "";
         if (P.rm && d != null && d !== 0 && s2 === "c") { if (!sel.has(t.id) && Math.abs(t.v - d) < .005) hint = `<span class="rhint">ticking this closes the gap</span>`; else if (sel.has(t.id) && Math.abs(t.v + d) < .005) hint = `<span class="rhint">unticking this closes the gap</span>`; }
@@ -5038,6 +5056,7 @@ function vAccount(v) {
   };
   const refresh = () => { paintPanel(); draw(); };
   $("#q").oninput = e => { P.q = e.target.value; P.lim = 60; draw(); }; refresh();
+  $("#xlReg").onclick = () => { if (!lastF.length) return toast("No entries to export"); xlRegister(a, lastF, running, [P.rf !== "all" ? ({ unrec: "Unreconciled", pend: "Pending", rec: "Reconciled" })[P.rf] : "", P.q ? `search "${P.q}"` : ""].filter(Boolean).join(", ")); };
   $("#back").onclick = () => go(k === "card" ? "cards" : k === "loan" ? "loans" : DEBT.has(k) ? "people" : "accounts");
   $("#editAcc").onclick = () => openAccount(a); $("#impSt").onclick = () => openStatementImport(a); wireCollChips(v, a); $("#setBal").onclick = () => openSetBalance(a);
   v.querySelectorAll("[data-goview]").forEach(x => x.onclick = () => go(x.dataset.goview));
@@ -5118,7 +5137,7 @@ function cardStatements(a, n = 6) {
 function cardPanelHTML(a) {
   const c = cardInfo(a), now = todayISO(), m = x => esc(money(x, a.cur)); const daysTo = d => Math.round((Date.parse(d) - Date.parse(now)) / 864e5); const st = cardStatements(a);
   const dueTxt = c.due ? `${fmtDate(c.due)} · ${daysTo(c.due) < 0 ? `<span class="neg">${-daysTo(c.due)} days overdue</span>` : daysTo(c.due) === 0 ? "today" : `in ${daysTo(c.due)} days`}` : "—";
-  return `<div class="card-h"><h2>Card and statement</h2><button class="btn sm" id="cpSet">Card settings</button></div>${cardFig(a)}
+  return `<div class="card-h"><h2>Card and statement</h2><span class="row-btns"><button class="btn sm" id="cpXl" type="button">Export statements</button><button class="btn sm" id="cpSet">Card settings</button></span></div>${cardFig(a)}
     ${c.sd ? `<div class="kv2"><div><span>Last statement</span><b>${fmtDate(c.lastStmt)}</b></div><div><span>Statement balance</span><b class="money">${m(Math.max(0, -c.stmtBal))}</b></div><div><span>Payment due</span><b>${dueTxt}</b></div><div><span>Spent this cycle</span><b class="money">${m(c.cycleSpend)}</b></div><div><span>Spent last cycle</span><b class="money">${m(c.prevSpend)}</b></div><div><span>Next statement</span><b>${fmtDate(c.nextStmt)}</b></div></div>
       <div class="tbl free" style="margin-top:.8rem"><table class="btab"><thead><tr><th>Statement date</th><th class="r">Closing balance</th><th class="r">Spent in cycle</th><th class="r">Payment due</th></tr></thead><tbody>${st.map(x => `<tr><td>${fmtDate(x.s)}</td><td class="r money">${m(Math.max(0, -x.bal))}</td><td class="r money">${m(x.spent)}</td><td class="r">${x.due ? fmtDate(x.due) : "—"}</td></tr>`).join("")}</tbody></table></div>`
       : `<p class="muted" style="margin:.4rem 0 0">Set the statement day and payment due day under Card settings to see statement balances, due dates and past statements.</p>`}`;
@@ -5141,6 +5160,100 @@ function cardsMount(v) {
 .kv2{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.7rem;margin-top:.8rem}.kv2>div{padding:.65rem .8rem;border-radius:.9rem;background:var(--surface2)}.kv2 span{display:block;font-size:.72rem;color:var(--muted);font-weight:600}.kv2 b{font:700 1rem var(--f-display)}
 @media (max-width:700px){.cm{grid-template-columns:minmax(0,1fr) 5rem auto}.cm>i{display:none}.cfig.big b{font-size:1.1rem}}
 `; document.head.appendChild(st); })();
+
+(function () { const st = document.createElement("style"); st.textContent = `
+.splitrow{display:grid;grid-template-columns:1fr 7.5rem auto;gap:.5rem;margin-bottom:.45rem;align-items:center}.splitrow select,.splitrow input{background:var(--surface2);border:1px solid var(--line);border-radius:.7rem;padding:.55rem .65rem;color:var(--ink);width:100%}
+.splitfoot{display:flex;align-items:center;gap:.8rem}.splitrem{font-size:.84rem;font-weight:700}.splitrem.ok{color:var(--pos)}.splitrem.bad{color:var(--neg)}
+`; document.head.appendChild(st); })();
+
+IC.download = IC.download || '<path d="M12 4v11M7.5 11l4.5 4.5 4.5-4.5M5 19.5h14"/>';
+/* ================= Amount search + real Excel (.xlsx) export ================= */
+function amtSpec(q) {
+  q = String(q || "").trim().replace(/,/g, ""); if (!q) return null; let m;
+  if ((m = q.match(/^(>=|<=|>|<|=)\s*(\d*\.?\d+)$/))) { const n = +m[2]; return { ">": v => v > n + .004, "<": v => v < n - .004, ">=": v => v >= n - .004, "<=": v => v <= n + .004, "=": v => Math.abs(v - n) < .005 }[m[1]]; }
+  if ((m = q.match(/^(\d*\.?\d+)\s*(?:-|to|\.\.)\s*(\d*\.?\d+)$/i))) { const a = +m[1], b = +m[2], lo = Math.min(a, b), hi = Math.max(a, b); return v => v >= lo - .004 && v <= hi + .004; }
+  if (/^\d*\.?\d+$/.test(q)) return v => Math.abs(v - +q) < .005 || v.toFixed(2).includes(q);
+  return null;
+}
+function txMatchQ(t, qRaw, extra = "") {
+  const q = String(qRaw || "").trim().toLowerCase(); if (!q) return true;
+  const spec = amtSpec(q); if (spec) { if (spec(Math.abs(t.v)) || (t.oa && spec(Math.abs(t.oa)))) return true; if (t.c && t.c.length > 1 && t.c.some(([, x]) => spec(Math.abs(x)))) return true; }
+  return (txLabel(t) + " " + (t.ds || "") + " " + (t.n || "") + " " + txCatLabel(t) + " " + extra).toLowerCase().includes(q);
+}
+/* ---------- xlsx writer (no library: zip via fflate) ---------- */
+const xlCol = i => { let s = ""; for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+const xlEsc = s => String(s ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const xlDate = iso => { const [y, m, d] = iso.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 864e5); };
+const XL_S = { def: 0, head: 1, text: 2, num: 3, date: 4, tnum: 5, ttext: 6, int: 7, title: 8, bold: 9, wrap: 10 };
+function xlSheetXml(sh) {
+  const cols = sh.cols, nR = sh.rows.length; let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"' + (sh.first ? ' tabSelected="1"' : "") + ">" + (sh.freeze === false ? "" : '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>') + "</sheetView></sheetViews><sheetFormatPr defaultRowHeight=\"16\"/>";
+  x += "<cols>" + cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.w || 14}" customWidth="1"/>`).join("") + "</cols><sheetData>";
+  x += `<row r="1" ht="22" customHeight="1">${cols.map((c, i) => `<c r="${xlCol(i)}1" s="${XL_S.head}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(c.h)}</t></is></c>`).join("")}</row>`;
+  sh.rows.forEach((r, ri) => { const rn = ri + 2; x += `<row r="${rn}">`; r.forEach((v, ci) => { if (v == null || v === "") return; const c = cols[ci] || {}; const ref = xlCol(ci) + rn; let t = c.t || "text";
+      if (t === "auto") t = typeof v === "number" ? "num" : /^\d{4}-\d{2}-\d{2}$/.test(v) ? "date" : "text";
+      if (t === "date" && typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) x += `<c r="${ref}" s="${XL_S.date}"><v>${xlDate(v)}</v></c>`;
+      else if ((t === "num" || t === "int") && Number.isFinite(+v) && v !== true) x += `<c r="${ref}" s="${t === "int" ? XL_S.int : XL_S.num}"><v>${+v}</v></c>`;
+      else x += `<c r="${ref}" s="${c.wrap ? XL_S.wrap : XL_S.text}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(v)}</t></is></c>`; }); x += "</row>"; });
+  let last = nR + 1;
+  if (sh.total && nR) { const tr = nR + 2; x += `<row r="${tr}">`; cols.forEach((c, i) => { const ref = xlCol(i) + tr; if (i === 0) x += `<c r="${ref}" s="${XL_S.ttext}" t="inlineStr"><is><t>${xlEsc(sh.total.label || "Total")}</t></is></c>`; else if (sh.total.sum.includes(i)) { const s = sh.rows.reduce((a, r) => a + (+r[i] || 0), 0); x += `<c r="${ref}" s="${XL_S.tnum}"><f>SUBTOTAL(109,${xlCol(i)}2:${xlCol(i)}${nR + 1})</f><v>${Math.round(s * 100) / 100}</v></c>`; } else x += `<c r="${ref}" s="${XL_S.ttext}"/>`; }); x += "</row>"; }
+  x += "</sheetData>" + (sh.filter === false || !nR ? "" : `<autoFilter ref="A1:${xlCol(cols.length - 1)}${last}"/>`) + '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToHeight="0"/></worksheet>';
+  return x;
+}
+function xlsxBuild(sheets) {
+  const names = sheets.map((s, i) => (s.name || "Sheet" + (i + 1)).replace(/[\\\/\?\*\[\]:]/g, " ").slice(0, 31)); sheets.forEach((s, i) => { s.first = i === 0; });
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00;[Red]\\-#,##0.00"/><numFmt numFmtId="165" formatCode="dd\\-mmm\\-yyyy"/></numFmts>' +
+    '<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B7A5F"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEAF2EE"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top style="thin"><color rgb="FF0B7A5F"/></top><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="11"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf>' +
+    '<xf numFmtId="164" fontId="1" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>' + names.map((n, i) => `<sheet name="${xlEsc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("") + "</sheets>" +
+    "<definedNames>" + sheets.map((s, i) => s.filter === false || !s.rows.length ? "" : `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${xlEsc(names[i])}'!$A$1:$${xlCol(s.cols.length - 1)}$${s.rows.length + 1}</definedName>`).join("") + "</definedNames></workbook>";
+  const wrel = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("") + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("") + "</Types>";
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const f = { "[Content_Types].xml": ct, "_rels/.rels": rels, "xl/workbook.xml": wb, "xl/_rels/workbook.xml.rels": wrel, "xl/styles.xml": styles }; sheets.forEach((s, i) => f[`xl/worksheets/sheet${i + 1}.xml`] = xlSheetXml(s));
+  const u = {}; for (const k in f) u[k] = fflate.strToU8(f[k]); return fflate.zipSync(u, { level: 6 });
+}
+async function saveXlsx(name, sheets) {
+  if (typeof fflate === "undefined") return toast("The Excel writer didn't load. Check your connection and try again.");
+  const bytes = xlsxBuild(sheets), type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  try { const dl = await (downloadsP ||= (window.claude?.use ? window.claude.use("downloads") : Promise.resolve(null))); if (dl) { await dl.save({ filename: name, data: new Blob([bytes], { type }) }); toast("Saved " + name); return; } } catch (e) { if (e && e.code === "declined") return; }
+  try { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); toast("Saved " + name); } catch (e) { toast("Downloads aren't available here"); }
+}
+const xlSummary = (title, pairs) => ({ name: "Summary", freeze: false, filter: false, cols: [{ h: title, w: 30, t: "text" }, { h: "", w: 34, t: "auto" }], rows: pairs.filter(p => p).map(([k, v]) => [k, v]) });
+/* generic: any "Export CSV" button gets an Excel twin; the CSV text is turned into a formatted workbook */
+function csvParse(text) { text = text.replace(/^﻿/, ""); const rows = []; let r = [], c = "", q = false; for (let i = 0; i < text.length; i++) { const ch = text[i]; if (q) { if (ch === '"') { if (text[i + 1] === '"') { c += '"'; i++; } else q = false; } else c += ch; } else if (ch === '"') q = true; else if (ch === ",") { r.push(c); c = ""; } else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; r.push(c); c = ""; rows.push(r); r = []; } else c += ch; } if (c || r.length) { r.push(c); rows.push(r); } return rows.filter(r => r.some(x => x !== "")); }
+function xlFromCsv(name, text) {
+  const rows = csvParse(text); if (!rows.length) return toast("Nothing to export"); const head = rows[0], body = rows.slice(1); const n = head.length;
+  const isNum = s => /^-?\d{1,15}(\.\d+)?$/.test(s) && !/^-?0\d/.test(s), isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const cols = head.map((h, i) => { const vals = body.map(r => r[i] ?? "").filter(x => x !== ""); const allNum = vals.length && vals.every(isNum), allDate = vals.length && vals.every(isDate); const dec = vals.some(x => /\./.test(x));
+    return { h: h || "Column " + (i + 1), t: allDate ? "date" : allNum ? (dec ? "num" : "int") : "text", w: Math.min(48, Math.max(11, Math.min(40, Math.max(String(h).length + 2, ...vals.slice(0, 200).map(x => String(x).length + 2))))) }; });
+  const data = body.map(r => cols.map((c, i) => { const v = r[i] ?? ""; return c.t === "num" || c.t === "int" ? (v === "" ? "" : +v) : v; }));
+  const ai = head.findIndex(h => /^amount$/i.test(h)); const sh = { name: name.replace(/\.csv$/i, "").slice(0, 31) || "Export", cols, rows: data, total: ai >= 0 && cols[ai].t !== "text" ? { label: "Total", sum: [ai] } : null };
+  saveXlsx(name.replace(/\.csv$/i, ".xlsx"), [sh, xlSummary("Export", [["File", name.replace(/\.csv$/i, ".xlsx")], ["Rows", body.length], ["Columns", n], ["Exported on", todayISO()], ["Exported from", "Money Ledger"]])]);
+}
+function xlBtns(v) {
+  v.querySelectorAll("button").forEach(b => { if (b.dataset.xl || !/csv/i.test(b.textContent) || b.nextElementSibling?.classList.contains("xlpair")) return; b.dataset.xl = 1;
+    const x = document.createElement("button"); x.type = "button"; x.className = (b.className || "btn").replace(/\bprimary\b/, "") + " xlpair"; x.innerHTML = b.innerHTML.replace(/CSV/gi, "Excel"); x.textContent = x.textContent.replace(/CSV/gi, "Excel"); b.insertAdjacentElement("afterend", x);
+    x.onclick = () => { window.XLMODE = true; try { b.click(); } finally { window.XLMODE = false; } }; });
+}
+/* ---------- register export ---------- */
+function xlRegister(a, rowsDesc, running, filterNote) {
+  const asc = rowsDesc.slice().reverse(), cur = a.cur; let inn = 0, out = 0;
+  const data = asc.map(t => { if (t.v > 0) inn += t.v; else out += t.v; const st = t.pending ? "Pending" : t.rec ? "Reconciled" : "Not reconciled"; return [t.d, txLabel(t), txCatLabel(t), t.n || "", t.v, running.get(t.id), st, t.oc && t.oa ? `${t.oa} ${t.oc}` : ""]; });
+  const m = recMath(a, sortedTx().filter(t => t.a === a.id)); const b = bal(a.id);
+  const sh = { name: a.name.slice(0, 28), cols: [{ h: "Date", w: 13, t: "date" }, { h: "Description", w: 36, t: "text" }, { h: "Category", w: 28, t: "text" }, { h: "Notes", w: 30, t: "text" }, { h: `Amount (${cur})`, w: 16, t: "num" }, { h: `Balance (${cur})`, w: 17, t: "num" }, { h: "Status", w: 16, t: "text" }, { h: "Original amount", w: 17, t: "text" }], rows: data, total: { label: "Total of rows shown", sum: [4] } };
+  const sum = xlSummary("Account statement", [["Account", a.name], ["Type", KINDS[kindOf(a)]], ["Currency", cur], ["Period", asc.length ? `${fmtDate(asc[0].d)} to ${fmtDate(asc.at(-1).d)}` : "—"], ["Entries in this file", asc.length], ["Opening balance (account)", a.open || 0], ["Money in (rows shown)", Math.round(inn * 100) / 100], ["Money out (rows shown)", Math.round(out * 100) / 100], ["Net (rows shown)", Math.round((inn + out) * 100) / 100], ["Current balance", b], ["Reconciled balance", m.recBal], ["Not yet reconciled", m.clr], ["Pending", m.pend], filterNote ? ["Filter", filterNote] : null, ["Exported on", todayISO()]]);
+  saveXlsx(`${a.name.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "account"}-statement-${todayISO()}.xlsx`, [sh, sum]);
+}
+function xlCardStatements(a) {
+  const c = cardInfo(a), st = cardStatements(a, 12); if (!st.length) return toast("Set the statement day under Card settings first");
+  saveXlsx(`${a.name.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-")}-card-statements-${todayISO()}.xlsx`, [{ name: "Statements", cols: [{ h: "Statement date", w: 16, t: "date" }, { h: `Closing balance owed (${a.cur})`, w: 26, t: "num" }, { h: `Spent in cycle (${a.cur})`, w: 22, t: "num" }, { h: "Payment due", w: 16, t: "date" }], rows: st.map(x => [x.s, Math.max(0, -x.bal), x.spent, x.due || ""]) },
+    xlSummary("Card summary", [["Card", a.name], ["Currency", a.cur], ["Credit limit", c.limit || "Not set"], ["Balance owed", c.owed], ["Available credit", c.avail != null ? c.avail : "—"], ["Utilised", c.util != null ? Math.round(c.util * 1000) / 10 + "%" : "—"], ["Last statement", c.lastStmt || "—"], ["Next statement", c.nextStmt || "—"], ["Payment due", c.due || "—"], ["Exported on", todayISO()]])]);
+}
 
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
@@ -5305,7 +5418,7 @@ function renderView(item) {
   const v = $("#view"); const nav = S2._navTo !== undefined && S2._navTo === S2.view; S2._navTo = undefined;
   const views = { home: vHome, appearance: vAppearance, styles: vStyles, data: vDataX, import: vImport, accounts: vAccounts, account: vAccount, transactions: vTransactions, cards: vCards, loans: vLoans, loan: vLoan, people: vPeople, upcoming: vUpcoming, budgets: vBudgets, reports: vReports, gold: vGold, investments: vInvestments, properties: vProperties, kids: vKids, goals: vGoals, forecast: vForecast, currencies: vCurrencies, retire: vRetire, stmt: vStatement };
   S._m = document.querySelectorAll(".scrim").length; scEnter(S2.view);
-  try { (views[S2.view] || vSoon)(v, item); if (typeof scMount === "function") scMount(v); if (typeof cardsMount === "function") cardsMount(v); } catch (e) { S._sc = null; throw e; }
+  try { (views[S2.view] || vSoon)(v, item); if (typeof scMount === "function") scMount(v); if (typeof cardsMount === "function") cardsMount(v); if (typeof xlBtns === "function") xlBtns(v); } catch (e) { S._sc = null; throw e; }
   if (nav && !document.body.classList.contains("fx-off") && v.animate) v.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
 }
 function topbar(title, sub, actions = "") {
@@ -5531,6 +5644,7 @@ function vData(v) {
 }
 let downloadsP = null;
 async function saveFile(name, text) {
+  if (window.XLMODE && /\.csv$/i.test(name)) return xlFromCsv(name, text);
   try { const dl = await (downloadsP ||= (window.claude?.use ? window.claude.use("downloads") : Promise.resolve(null)));
     if (dl) { await dl.save({ filename: name, data: new Blob([text], { type: "text/plain" }) }); toast("Saved " + name); return; } } catch (e) { if (e && e.code === "declined") return; }
   try { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text])); a.download = name; document.body.appendChild(a); a.click(); a.remove(); toast("Saved " + name); } catch (e) { toast("Downloads aren't available here"); }
