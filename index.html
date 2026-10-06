@@ -1872,7 +1872,7 @@ function loanInfo(a) {
   return { b, rate, emi, am, end, orig, paid, guessed: !L.rate || !L.emi, L };
 }
 function vLoans(v) {
-  const loans = D().accounts.filter(a => kindOf(a) === "loan" && (bal(a.id) < -.5 || a.loan)); const B = base();
+  const loans = D().accounts.filter(a => kindOf(a) === "loan" && !a.archived && (bal(a.id) < -.5 || a.loan)); const B = base();
   const tot = loans.reduce((s, a) => s + toBase(-bal(a.id), a.cur), 0); const infos = loans.map(a => [a, loanInfo(a)]);
   const intLeft = infos.reduce((s, [a, i]) => s + (i.am && isFinite(i.am.interest) ? toBase(i.am.interest, a.cur) : 0), 0);
   const debtFree = infos.map(([, i]) => i.end).filter(Boolean).sort().at(-1);
@@ -3020,10 +3020,10 @@ function rPayees(v, r, p) {
 function rBudgetVA(v, r, p) {
   const B = base(), bs = D().budgets || []; const end = todayISO(); const ms = monthsBetween(addMonths(end.slice(0, 8) + "01", -5), end);
   const act = new Map(); const pids = [...new Set(bs.map(b => b.plan || 0))]; eachFlow(ms[0] + "-01", end, (k, c, val, t) => { if (k !== "exp" || !c) return; for (const pid of pids) { if (!planOk({ plan: pid }, t)) continue; const key = pid + "|" + topCat(c).id + "|" + t.d.slice(0, 7); act.set(key, (act.get(key) || 0) + val); const ck = key + "|" + ctryOf(accMap().get(t.a)); act.set(ck, (act.get(ck) || 0) + val); } });
-  const spent = (b, m) => act.get((b.plan || 0) + "|" + b.cat + "|" + m + ((b.scope || "all") === "all" ? "" : "|" + b.scope)) || 0;
+  const spent = (b, m) => bcats(b).reduce((s, c) => s + (act.get((b.plan || 0) + "|" + c + "|" + m + ((b.scope || "all") === "all" ? "" : "|" + b.scope)) || 0), 0);
   v.innerHTML = `${repHead(r, `Last 6 months · in ${B}`)}
     ${bs.length ? `<div class="card"><div class="tbl free"><table class="pl"><thead><tr><th class="rl">Budget</th><th class="r">Limit</th>${ms.map(m => `<th class="r">${fmtMonth(m)}</th>`).join("")}<th class="r">Months over</th></tr></thead><tbody>
-      ${bs.map(b => { const vals = ms.map(m => spent(b, m)); return `<tr><th class="rl">${esc(catMap().get(b.cat)?.name || "?")}${(b.scope || "all") !== "all" ? ` <span class="faint">${b.scope}</span>` : ""}</th><td class="r money">${esc(compact(b.amt, B))}</td>${vals.map(x => { const f = x / b.amt; return `<td class="r money"><span class="bva ${f > 1 ? "high" : f > .8 ? "watch" : "good"}">${esc(compact(x, B).replace(curSym(B), "").trim())}</span></td>`; }).join("")}<td class="r"><b class="${vals.filter(x => x > b.amt).length ? "neg" : "pos"}">${vals.filter(x => x > b.amt).length}/${ms.length}</b></td></tr>`; }).join("")}</tbody></table></div></div>` : `<div class="card empty-state"><h2>No budgets yet</h2><p class="muted">Set budgets in Budgets, then come back to see them against actual spending.</p><button class="btn primary" data-go="budgets">Open Budgets</button></div>`}`;
+      ${bs.map(b => { const vals = ms.map(m => spent(b, m)); return `<tr><th class="rl">${esc(bname(b))}${(b.scope || "all") !== "all" ? ` <span class="faint">${b.scope}</span>` : ""}</th><td class="r money">${esc(compact(b.amt, B))}</td>${vals.map(x => { const f = x / b.amt; return `<td class="r money"><span class="bva ${f > 1 ? "high" : f > .8 ? "watch" : "good"}">${esc(compact(x, B).replace(curSym(B), "").trim())}</span></td>`; }).join("")}<td class="r"><b class="${vals.filter(x => x > b.amt).length ? "neg" : "pos"}">${vals.filter(x => x > b.amt).length}/${ms.length}</b></td></tr>`; }).join("")}</tbody></table></div></div>` : `<div class="card empty-state"><h2>No budgets yet</h2><p class="muted">Set budgets in Budgets, then come back to see them against actual spending.</p><button class="btn primary" data-go="budgets">Open Budgets</button></div>`}`;
   wireRepHead(v); v.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
 }
 
@@ -4469,7 +4469,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-05 · 220e36"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-06 · d2f705"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -4909,7 +4909,7 @@ function budPie(items, size = 150) {
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="How the budget is split">${segs}</svg>`;
 }
 function budDaily(P, bs, dim) {
-  const ids = new Set(bs.map(b => b.cat)), a = Array(dim).fill(0);
+  const ids = new Set(bs.flatMap(b => bcats(b))), a = Array(dim).fill(0);
   eachFlow(P.month + "-01", monthEnd(P.month), (k, c, val, t) => { if (k !== "exp" || !c) return; if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; const tc = topCat(c); if (tc && ids.has(tc.id)) a[+t.d.slice(8) - 1] += val; });
   return a;
 }
@@ -4930,19 +4930,19 @@ function vBudgets(v) {
   const P = S2.pb ||= { month: todayISO().slice(0, 7), scope: "all" }; P.hn ||= 6; const B = base(), n = P.hn;
   budPlanFix(P); const bs = (D().budgets ||= []).filter(b => (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0)); const H = budHist(P, 12); const idx = 11, spent = new Map([...H.h].map(([k, a]) => [k, a[idx]]));
   const dim = new Date(+P.month.slice(0, 4), +P.month.slice(5, 7), 0).getDate(), isCur = P.month === todayISO().slice(0, 7), today = isCur ? new Date().getDate() : 0, dayFrac = isCur ? today / dim : 1, left = isCur ? dim - today : 0;
-  const totB = sumOf(bs.map(b => b.amt)), totS = sumOf(bs.map(b => spent.get(b.cat) || 0)), expect = totB * dayFrac, projT = isCur && today >= 3 ? totS / dayFrac : totS, income = H.inc[idx], allSpent = H.tot[idx];
+  const totB = sumOf(bs.map(b => b.amt)), totS = sumOf(bs.map(b => sumOf(bcats(b).map(c => spent.get(c) || 0)))), expect = totB * dayFrac, projT = isCur && today >= 3 ? totS / dayFrac : totS, income = H.inc[idx], allSpent = H.tot[idx];
   const safeDay = isCur && left > 0 ? Math.max(0, totB - totS) / left : null; const col = f => f > 1 ? "var(--neg)" : f > .85 ? "var(--accent2)" : "var(--pos)";
-  const info = bs.map((b, i) => { const a = H.h.get(b.cat) || Array(12).fill(0), s = a[idx], past = a.slice(12 - n - 1, 11).filter((_, j, arr) => true), prior = a.slice(12 - n - 1, 11), brk = prior.filter(x => x > b.amt).length, av = avgOf(prior), mxp = Math.max(0, ...prior); return { b, a, s, f: b.amt ? s / b.amt : 0, brk, av, mxp, prior, proj: isCur && today >= 3 ? s / dayFrac : s, c: catMap().get(b.cat), i }; });
+  const info = bs.map((b, i) => { const a = bseries(H.h, b, 12), s = a[idx], past = a.slice(12 - n - 1, 11).filter((_, j, arr) => true), prior = a.slice(12 - n - 1, 11), brk = prior.filter(x => x > b.amt).length, av = avgOf(prior), mxp = Math.max(0, ...prior); return { b, a, s, f: b.amt ? s / b.amt : 0, brk, av, mxp, prior, proj: isCur && today >= 3 ? s / dayFrac : s, c: { name: bname(b) }, i }; });
   const ins = [];
   info.filter(x => x.brk >= 3 && x.prior.length >= 4).sort((a, b) => b.brk - a.brk).slice(0, 2).forEach(x => ins.push({ t: "warn", ic: "target", h: `${x.c?.name} is over budget most months`, p: `Went over in ${x.brk} of the last ${x.prior.length} months (average ${compact(x.av, B)} against a ${compact(x.b.amt, B)} limit). Raising it to about ${compact(Math.ceil(x.av * 1.05 / 50) * 50, B)} would match reality.`, act: `data-edit="${x.b.id}"`, al: "Adjust" }));
   info.filter(x => x.prior.length >= 4 && x.mxp < x.b.amt * .7 && x.b.amt > 0).sort((a, b) => (b.b.amt - b.mxp) - (a.b.amt - a.mxp)).slice(0, 2).forEach(x => ins.push({ t: "good", ic: "check", h: `${x.c?.name} budget looks too loose`, p: `Never above ${compact(x.mxp, B)} in ${x.prior.length} months, yet the limit is ${compact(x.b.amt, B)}. Trimming to ${compact(Math.ceil(x.mxp * 1.1 / 50) * 50, B)} frees ${compact(x.b.amt - Math.ceil(x.mxp * 1.1 / 50) * 50, B)} a month.`, act: `data-edit="${x.b.id}"`, al: "Adjust" }));
-  const have = new Set(bs.map(b => b.cat)), ub = [...H.h].filter(([k]) => !have.has(k)).map(([k, a]) => ({ k, av: avgOf(a.slice(6)), s: a[idx] })).filter(x => x.av > 0).sort((a, b) => b.av - a.av);
+  const have = new Set(bs.flatMap(b => bcats(b))), ub = [...H.h].filter(([k]) => !have.has(k)).map(([k, a]) => ({ k, av: avgOf(a.slice(6)), s: a[idx] })).filter(x => x.av > 0).sort((a, b) => b.av - a.av);
   ub.slice(0, 2).filter(x => x.av > (allSpent || 1) * .04).forEach(x => ins.push({ t: "info", ic: "wallet", h: `${catMap().get(x.k)?.name || "Category"} has no budget`, p: `You spend about ${compact(x.av, B)} a month on it${x.s ? ` (${compact(x.s, B)} this month)` : ""}. A limit of ${compact(Math.ceil(x.av * 1.05 / 50) * 50, B)} would cover it.`, act: `data-addc="${x.k}" data-amt="${Math.ceil(x.av * 1.05 / 50) * 50}"`, al: "Add budget" }));
   if (isCur && bs.length) { const hot = info.filter(x => x.proj > x.b.amt * 1.05 && x.f <= 1).sort((a, b) => (b.proj - b.b.amt) - (a.proj - a.b.amt))[0]; if (hot) ins.push({ t: "warn", ic: "forecast", h: `${hot.c?.name} is heading over`, p: `${compact(hot.s, B)} spent with ${left} days left. At this pace it ends near ${compact(hot.proj, B)}, ${compact(hot.proj - hot.b.amt, B)} above its limit.` }); }
   const best = info.filter(x => x.prior.length >= 4 && x.brk === 0).sort((a, b) => b.b.amt - a.b.amt)[0]; if (best) ins.push({ t: "good", ic: "target", h: `${best.c?.name}: on budget every month`, p: `Stayed under ${compact(best.b.amt, B)} for the last ${best.prior.length} months running.` });
-  let streak = 0; for (let j = 10; j >= 0 && totB > 0; j--) { const bsum = sumOf(bs.map(b => (H.h.get(b.cat) || [])[j] || 0)); if (bsum <= totB) streak++; else break; } if (streak >= 2) ins.push({ t: "good", ic: "sparkle", h: `${streak} months in a row within the total budget`, p: `Combined spending on budgeted categories stayed under ${compact(totB, B)} each month.` });
+  let streak = 0; for (let j = 10; j >= 0 && totB > 0; j--) { const bsum = sumOf(bs.map(b => bseries(H.h, b, 12)[j] || 0)); if (bsum <= totB) streak++; else break; } if (streak >= 2) ins.push({ t: "good", ic: "sparkle", h: `${streak} months in a row within the total budget`, p: `Combined spending on budgeted categories stayed under ${compact(totB, B)} each month.` });
   const planned = totB, saved = income - allSpent, unalloc = income - totB, pieC = (i) => `var(--c${(i % 8) + 1})`;
-  const hist = n === 12 ? 12 : n; const hm = H.ms.slice(12 - hist), hv = hm.map((m, j) => sumOf(bs.map(b => (H.h.get(b.cat) || [])[12 - hist + j] || 0)));
+  const hist = n === 12 ? 12 : n; const hm = H.ms.slice(12 - hist), hv = hm.map((m, j) => sumOf(bs.map(b => bseries(H.h, b, 12)[12 - hist + j] || 0)));
   v.innerHTML = `${topbar("Budgets", `Monthly limits by category, in ${B}`, `<button class="btn" id="sug">${icon("sparkle")}Suggest from my average</button><button class="btn primary" id="addB">${icon("plus")}Add category limit</button>`)}
     <div class="toolbar"><div class="calhead" style="margin:0"><button class="ibtn" data-bm="-1" aria-label="Previous month">‹</button><b>${fmtMonth(P.month).replace(" ", " 20")}</b><button class="ibtn" data-bm="1" aria-label="Next month">›</button></div>
       <div class="seg" role="group">${[["all", "All countries"], ...usedCtrys().map(c => [c.id, c.name])].map(([k, l]) => `<button data-bs="${k}" aria-pressed="${P.scope === k}">${l}</button>`).join("")}</div>
@@ -4953,7 +4953,7 @@ function vBudgets(v) {
       <div class="card span-4 kpi"><div class="muted">${isCur ? "Safe to spend per day" : "Budget used"}</div>${isCur ? `<div class="bigval money">${safeDay == null ? "—" : esc(compact(safeDay, B))}</div><div class="muted" style="font-size:.8rem">${left} day${left === 1 ? "" : "s"} left · ${totS > expect ? `${esc(compact(totS - expect, B))} ahead of pace` : `${esc(compact(expect - totS, B))} behind pace (good)`}</div>${spark2(daily0(P, bs, dim), "var(--accent)", 140, 28)}` : `<div class="bigval">${Math.round(totB ? totS / totB * 100 : 0)}%</div>`}</div>
       <div class="card span-12"><div class="card-h"><h2>Budget against income</h2><span class="note">${esc(compact(income, B))} earned this month</span></div>${income > 0 ? `<div class="bvi"><div class="bvbar">${[["Spent on budgets", totS, "var(--accent)"], ["Other spending", Math.max(0, allSpent - totS), "var(--faint)"], ["Saved", Math.max(0, saved), "var(--pos)"]].map(([l, x, c]) => `<i style="flex:${Math.max(x, 0.001)};background:${c}" title="${l}"></i>`).join("")}</div><div class="bvleg">${[["Planned (budgets)", planned, "var(--accent2)"], ["Spent on budgets", totS, "var(--accent)"], ["Other spending", Math.max(0, allSpent - totS), "var(--faint)"], ["Saved so far", saved, saved >= 0 ? "var(--pos)" : "var(--neg)"], ["Not yet planned", unalloc, unalloc >= 0 ? "var(--c3)" : "var(--neg)"]].map(([l, x, c]) => `<div><i style="background:${c}"></i><span>${l}</span><b class="money">${esc(compact(x, B))}</b></div>`).join("")}</div><p class="muted" style="margin:.6rem 0 0;font-size:.82rem">${unalloc >= 0 ? `Your budgets use ${Math.round(planned / income * 100)}% of this month's income; ${compact(unalloc, B)} is not assigned to anything.` : `Your budgets add up to more than you earned this month by ${compact(-unalloc, B)}.`}</p></div>` : `<div class="empty">No income recorded for this month yet.</div>`}</div>
       <div class="card span-8"><div class="card-h"><h2>Spending pace this month</h2><span class="note">budgeted categories only</span></div><div class="chart" id="bpace"></div></div>
-      <div class="card span-4"><div class="card-h"><h2>How the budget is split</h2></div><div class="piew">${budPie(bs.map((b, i) => ({ v: b.amt, c: pieC(i) })))}<div class="pieleg">${bs.slice().sort((a, b) => b.amt - a.amt).slice(0, 7).map((b, i) => { const k = bs.indexOf(b); return `<div><i style="background:${pieC(k)}"></i><span>${esc(catMap().get(b.cat)?.name || "")}</span><b>${Math.round(b.amt / totB * 100)}%</b></div>`; }).join("")}</div></div></div>
+      <div class="card span-4"><div class="card-h"><h2>How the budget is split</h2></div><div class="piew">${budPie(bs.map((b, i) => ({ v: b.amt, c: pieC(i) })))}<div class="pieleg">${bs.slice().sort((a, b) => b.amt - a.amt).slice(0, 7).map((b, i) => { const k = bs.indexOf(b); return `<div><i style="background:${pieC(k)}"></i><span>${esc(bname(b))}</span><b>${Math.round(b.amt / totB * 100)}%</b></div>`; }).join("")}</div></div></div>
       <div class="card span-12"><div class="card-h"><h2>Smart insights</h2><span class="note">${ins.length} from your history</span></div><div class="insg">${ins.map(i => `<div class="ins ${i.t}"><span class="insi">${icon(i.ic, 1.8)}</span><div><b>${esc(i.h)}</b><p>${esc(i.p)}</p>${i.act ? `<button class="btn sm" ${i.act}>${i.al}</button>` : ""}</div></div>`).join("") || `<div class="empty">Insights appear once you have a few months of history.</div>`}</div></div>
       <div class="card span-12"><div class="card-h"><h2>Each budget</h2><span class="note">the dark tick marks where today's pace should be</span></div><div class="budg">${info.map(x => { const st = x.f > 1 ? "high" : x.f > .85 ? "watch" : "good", cc = col(x.f), exp1 = x.b.amt * dayFrac, left1 = x.b.amt - x.s;
         return `<div class="bc" data-b="${x.b.id}" role="button" tabindex="0">${ringMeter(x.f, { size: 84, stroke: 10, color: cc, pace: isCur ? dayFrac : null, center: Math.round(x.f * 100) + "%" })}<div class="bcm"><div class="rkt"><b>${esc(x.c?.name || "Category")}</b><span class="st ${st}">${st === "high" ? "▲ Over" : st === "watch" ? "◐ Near" : "● On track"}</span></div>
@@ -4971,7 +4971,7 @@ function vBudgets(v) {
   v.querySelectorAll("[data-addc]").forEach(c => c.onclick = () => { D().budgets.push(stamp({ id: newId(), cat: +c.dataset.addc, amt: +c.dataset.amt, scope: P.scope, plan: P.plan || 0 })); changed(); renderApp(); toast("Budget added"); });
   $("#addB").onclick = () => budgetEditor(null);
   $("#sug").onclick = () => { const avg = new Map(); const e = todayISO(); eachFlow(addMonths(e.slice(0, 8) + "01", -12), isoLocal(new Date(+e.slice(0, 4), +e.slice(5, 7) - 1, 0)), (k, c, val, t) => { if (k !== "exp" || !c) return; if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; const tc = topCat(c); avg.set(tc.id, (avg.get(tc.id) || 0) + val / 12); });
-    let m = 0; for (const [cat, a] of [...avg.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10)) { if (a < 50 || D().budgets.some(b => b.cat === cat && (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0))) continue; D().budgets.push(stamp({ id: newId(), cat, amt: Math.ceil(a / 50) * 50, scope: P.scope, plan: P.plan || 0 })); m++; }
+    let m = 0; for (const [cat, a] of [...avg.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10)) { if (a < 50 || D().budgets.some(b => bcats(b).includes(cat) && (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0))) continue; D().budgets.push(stamp({ id: newId(), cat, amt: Math.ceil(a / 50) * 50, scope: P.scope, plan: P.plan || 0 })); m++; }
     changed(); renderApp(); toast(m ? `Added ${m} budgets from your 12-month average` : "Budgets already cover your main categories"); };
   requestAnimationFrame(() => { if (!bs.length || !$("#bpace")) return; paceChart($("#bpace"), budDaily(P, bs, dim), totB, today, B);
     const el = $("#bhist"); if (!el) return; const W = Math.max(300, el.clientWidth || 640), Hh = 230, L = 62, R = 8, T = 10, B2 = 26, k = hm.length; const ticks = niceTicks(0, Math.max(totB, ...hv, 1)), mx = ticks.at(-1), y = q => T + (mx - q) / mx * (Hh - T - B2), slot = (W - L - R) / k, bw = Math.max(8, Math.min(34, slot - 8));
@@ -5566,19 +5566,31 @@ function planEditor(id) {
       schedConfirm(`Delete “${esc(pl.name)}”?`, `Its ${n} category limit${n === 1 ? "" : "s"} will be removed too. Your entries are not affected.`, "Delete", () => { for (const b of (D().budgets || []).filter(b => (b.plan || 0) === pl.id)) tomb("budget", b.id); D().budgets = D().budgets.filter(b => (b.plan || 0) !== pl.id); D().budgetPlans = D().budgetPlans.filter(p => p.id !== pl.id); tomb("budgetplan", pl.id); if (P.plan === pl.id) P.plan = 0; changed(); renderApp(); toast("Deleted"); }); };
   });
 }
+/* a limit can cover several categories: b.cats = [ids] (b.cat stays the first one), optional b.name */
+function bcats(b) { return b.cats && b.cats.length ? b.cats : [b.cat]; }
+function bname(b) { return b.name || bcats(b).map(c => catMap().get(c)?.name).filter(Boolean).join(" + ") || "Category"; }
+function bseries(h, b, n) { const out = Array(n).fill(0); for (const c of bcats(b)) { const a = h.get(c); if (a) for (let i = 0; i < n; i++) out[i] += a[i] || 0; } return out; }
 function budgetEditor(b) {
   const P = S2.pb, isNew = !b; b = b || { cat: null, amt: 0, scope: P.scope, plan: P.plan || 0 };
-  const plans = budPlans();
+  const plans = budPlans(), chosen = new Set(isNew ? [] : bcats(b));
+  const roots = D().cats.filter(c => c.type === "exp" && (!c.parent || !catMap().get(c.parent))).sort((x, y) => x.name.localeCompare(y.name));
+  const takenBy = () => { const pid = $("#bp") ? +$("#bp").value : (b.plan || 0), m = new Map(); for (const o of D().budgets || []) if (o !== b && (o.plan || 0) === pid && (o.scope || "all") === (b.scope || "all")) for (const c of bcats(o)) m.set(c, bname(o)); return m; };
   modal(`<div class="m-head"><h2>${isNew ? "Add category limit" : "Edit category limit"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <form class="form" novalidate>${plans.length > 1 ? `<label class="full">Budget<select id="bp">${plans.map(p => `<option value="${p.id}" ${p.id === (b.plan || 0) ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>` : ""}
-      <label class="full">Category<select id="bc">${D().cats.filter(c => c.type === "exp" && (!c.parent || !catMap().get(c.parent))).sort((x, y) => x.name.localeCompare(y.name)).map(c => `<option value="${c.id}" ${c.id === b.cat ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Categories <span style="font-weight:400">· tick one, or several to share one limit</span></div><div class="fs" id="bcl" style="max-height:13rem"></div></div>
+      <label class="full">Name (optional)<input type="text" id="bn" value="${esc(b.name || "")}" placeholder="e.g. Daily life"></label>
       <label>Monthly limit (${base()})<input type="number" id="ba" step="10" value="${b.amt || ""}"></label>
-      <div class="full muted" style="font-size:.82rem" id="bAccN"></div></form>
+      <div class="full muted" style="font-size:.82rem" id="bAccN"></div></form><div id="bErr" class="err" hidden></div>
     <div class="m-foot"><div>${isNew ? "" : `<button class="btn danger" id="bd">Delete</button>`}</div><div class="row-btns"><button class="btn" id="bEA">Change accounts</button><button class="btn" data-x>Cancel</button><button class="btn primary" id="bs">Save</button></div></div>`,
   (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
-    const pid = () => $("#bp", m) ? +$("#bp", m).value : (b.plan || 0), note = () => { $("#bAccN", m).textContent = "Counts spending from: " + planAccLine(planOf(pid())); }; note(); if ($("#bp", m)) $("#bp", m).onchange = note;
+    const pid = () => $("#bp", m) ? +$("#bp", m).value : (b.plan || 0), note = () => { $("#bAccN", m).textContent = "Counts spending from: " + planAccLine(planOf(pid())); };
+    const list = () => { const tk = takenBy(); $("#bcl", m).innerHTML = roots.map(c => { const o = tk.get(c.id); return `<label class="tgl" ${o ? 'style="opacity:.5"' : ""}><input type="checkbox" value="${c.id}" ${chosen.has(c.id) && !o ? "checked" : ""} ${o ? "disabled" : ""}> ${esc(c.name)}${o ? ` <span class="faint">in ${esc(o)}</span>` : ""}</label>`; }).join(""); m.querySelectorAll("#bcl input").forEach(i => i.onchange = () => { i.checked ? chosen.add(+i.value) : chosen.delete(+i.value); }); };
+    note(); list(); if ($("#bp", m)) $("#bp", m).onchange = () => { note(); list(); };
     $("#bEA", m).onclick = () => { close(); planEditor(pid()); };
-    $("#bs", m).onclick = () => { const amt = +$("#ba", m).value; if (!(amt > 0)) return; Object.assign(b, { cat: +$("#bc", m).value, amt, plan: pid() }); if (isNew) { b.id = newId(); D().budgets.push(b); } P.plan = b.plan; stamp(b); changed(); close(); renderApp(); };
+    $("#bs", m).onclick = () => { const amt = +$("#ba", m).value, er = $("#bErr", m), tk = takenBy(); const ids = roots.map(c => c.id).filter(id => chosen.has(id) && !tk.has(id));
+      if (!ids.length) { er.hidden = false; er.textContent = "Tick at least one category."; return; } if (!(amt > 0)) { er.hidden = false; er.textContent = "Enter the monthly limit."; return; }
+      const nm = clean($("#bn", m).value); Object.assign(b, { cat: ids[0], amt, plan: pid() }); if (ids.length > 1) b.cats = ids; else delete b.cats; if (nm) b.name = nm; else delete b.name;
+      if (isNew) { b.id = newId(); D().budgets.push(b); } P.plan = b.plan; stamp(b); changed(); close(); renderApp(); };
     if ($("#bd", m)) $("#bd", m).onclick = () => { D().budgets = D().budgets.filter(x => x !== b); tomb("budget", b.id); changed(); close(); renderApp(); }; });
 }
 
@@ -5597,7 +5609,7 @@ function weekData(planId, scope, ym, today = todayISO()) {
   const mFrom = ym + "-01", mTo = monthEnd(ym), dim = +mTo.slice(8), weeks = []; let ws = wkMon(mFrom);
   while (ws <= mTo) { const we = addDays(ws, 6), from = ws < mFrom ? mFrom : ws, to = we > mTo ? mTo : we; weeks.push({ ws, we, from, to, days: dDiff(from, to) + 1, part: ws < mFrom || we > mTo }); ws = addDays(ws, 7); }
   const pws = addDays(wkMon(today), -7), pwe = addDays(pws, 6), f0 = pws < mFrom ? pws : mFrom, t0 = pwe > mTo ? pwe : mTo;
-  const byB = new Map(bs.map(b => [b.id, new Map()])), byCat = new Map(); for (const b of bs) { if (!byCat.has(b.cat)) byCat.set(b.cat, []); byCat.get(b.cat).push(b); }
+  const byB = new Map(bs.map(b => [b.id, new Map()])), byCat = new Map(); for (const b of bs) for (const c of bcats(b)) { if (!byCat.has(c)) byCat.set(c, []); byCat.get(c).push(b); }
   if (bs.length) eachFlow(f0, t0, (k, c, val, t) => { if (k !== "exp" || !c) return; if (pl.accs && !pl.accs.includes(t.a)) return; const tc = topCat(c), l = tc && byCat.get(tc.id); if (!l) return; const ct = ctryOf(accMap().get(t.a));
     for (const b of l) { const sc = b.scope || "all"; if (sc !== "all" && sc !== ct) continue; const m = byB.get(b.id); m.set(t.d, (m.get(t.d) || 0) + val); } });
   const tot = new Map(); for (const m of byB.values()) for (const [d, v] of m) tot.set(d, (tot.get(d) || 0) + v);
@@ -5630,7 +5642,7 @@ function weekCardHTML(d, today) {
   return `<div class="card span-12 wkcard"><div class="card-h"><h2>Weekly spending</h2><span class="note">Monday to Sunday · ${esc(compact(d.T, B))} a month in ${esc(d.pl.name)}</span></div>
     <div class="wkhero">${hero}</div>
     <h3 class="bhead">Week by week</h3><div class="wklist"><div class="wkr wkhd"><div>Week</div><div></div><div class="wkv"><span>Spent</span><span></span><b>Left / can spend</b></div></div>${rows}</div>
-    ${cats.length ? `<details class="wkcats"><summary><b>This week by category</b> <span class="muted">· ${cats.length} limit${cats.length === 1 ? "" : "s"}</span></summary><div class="wklist">${cats.map(({ b, w: cw }) => { const s = wkStatus(cw); return `<div class="wkr"><div class="wkn"><b>${esc(catMap().get(b.cat)?.name || "Category")}</b></div><div class="wkbar"><i style="width:${Math.min(100, s.f * 100).toFixed(1)}%;background:${s.col}"></i></div><div class="wkv"><span>${esc(compact(cw.spent, B))}</span><span class="faint">of ${esc(compact(cw.allow, B))}</span><b class="money" style="color:${cw.left >= 0 ? "var(--pos)" : "var(--neg)"}">${cw.left >= 0 ? "" : "−"}${esc(compact(Math.abs(cw.left), B))}</b></div></div>`; }).join("")}</div></details>` : ""}</div>`;
+    ${cats.length ? `<details class="wkcats"><summary><b>This week by category</b> <span class="muted">· ${cats.length} limit${cats.length === 1 ? "" : "s"}</span></summary><div class="wklist">${cats.map(({ b, w: cw }) => { const s = wkStatus(cw); return `<div class="wkr"><div class="wkn"><b>${esc(bname(b))}</b></div><div class="wkbar"><i style="width:${Math.min(100, s.f * 100).toFixed(1)}%;background:${s.col}"></i></div><div class="wkv"><span>${esc(compact(cw.spent, B))}</span><span class="faint">of ${esc(compact(cw.allow, B))}</span><b class="money" style="color:${cw.left >= 0 ? "var(--pos)" : "var(--neg)"}">${cw.left >= 0 ? "" : "−"}${esc(compact(Math.abs(cw.left), B))}</b></div></div>`; }).join("")}</div></details>` : ""}</div>`;
 }
 function budWeekMount(v, P, bs) {
   budPlanFix(P); const plans = budPlans(), pl = planOf(P.plan || 0);
@@ -5679,6 +5691,50 @@ function weekHomeMount(v) {
 .ccard .plastic::after{background:linear-gradient(115deg,rgba(255,255,255,.16),transparent 42%)}
 .ccard .plastic{-webkit-font-smoothing:antialiased}.ccard .pl-bot{font-size:.8rem}
 .ccard .hm-bar{height:8px!important}`; document.head.appendChild(st); })();
+
+/* ================= Phase 7: delete or archive an account / loan ================= */
+function tombF(kind, id) { (S.data.tomb ||= []).push({ k: kind, id, u: Date.now(), by: me(), dv: DEVICE }); }
+function accUse(a) {
+  const d = S.data, mine = new Set(d.tx.filter(t => t.a === a.id).map(t => t.id)), del = new Set(mine);
+  for (const t of d.tx) { if (mine.has(t.id) && t.x) del.add(t.x); if (t.x && mine.has(t.x)) del.add(t.id); }
+  const sched = (d.sched || []).filter(s => s.a === a.id || s.to === a.id);
+  return { mine: mine.size, del, other: del.size - mine.size, sched: sched.length };
+}
+function accArchive(a) {
+  const x = S.data.accounts.find(y => y.id === a.id); if (!x) return; x.archived = true; stamp(x); changed();
+  go(kindOf(x) === "loan" ? "loans" : "accounts"); toast("Archived. Its history stays in your reports.");
+}
+function accDeleteNow(a) {
+  const d = S.data, u = accUse(a), id = a.id, kind = kindOf(a), val = Math.round(bal(id) * 100) / 100, cur = a.cur;
+  d.tx = d.tx.filter(t => u.del.has(t.id) ? (tombF("tx", t.id), false) : true);
+  for (const t of d.tx) if (t.xa === id) { delete t.xa; delete t.x; if (t.t === "tin" || t.t === "tout") t.t = t.v < 0 ? "exp" : "inc"; stamp(t); }
+  const gone = (d.sched || []).filter(s => s.a === id || s.to === id); if (gone.length) { const set = new Set(gone.map(s => s.id)); d.sched = d.sched.filter(s => !set.has(s.id)); for (const s of gone) tombF("sched", s.id); }
+  try { for (const c of colls()) if ((c.accs || []).includes(id)) { c.accs = c.accs.filter(x => x !== id); stamp(c); } } catch (e) { }
+  const st = d.settings || {}; if (st.mainBud && st.mainBud.accs) st.mainBud.accs = st.mainBud.accs.filter(x => x !== id);
+  for (const p of d.budgetPlans || []) if (p.accs) p.accs = p.accs.filter(x => x !== id);
+  for (const p of d.properties || []) { if (p.acc === id) { p.value = val; p.cur = cur; p.acc = null; stamp(p); } if ((p.loans || []).includes(id)) { p.loans = p.loans.filter(x => x !== id); stamp(p); } }
+  for (const k of Object.keys(st.scopes || {})) if (st.scopes[k] && Array.isArray(st.scopes[k].acc)) st.scopes[k].acc = st.scopes[k].acc.filter(x => x !== id);
+  d.accounts = d.accounts.filter(x => x.id !== id); tombF("account", id); changed();
+  go(kind === "loan" ? "loans" : "accounts"); toast("Deleted");
+}
+function accRemoveDlg(a) {
+  const u = accUse(a), what = kindOf(a) === "loan" ? "loan" : "account";
+  const parts = []; if (u.mine) parts.push(`<b>${u.mine}</b> entr${u.mine === 1 ? "y" : "ies"}`); if (u.other) parts.push(`<b>${u.other}</b> matching entr${u.other === 1 ? "y" : "ies"} in other accounts (the other side of transfers)`); if (u.sched) parts.push(`<b>${u.sched}</b> scheduled payment${u.sched === 1 ? "" : "s"}`);
+  const hist = parts.length ? `It has ${parts.join(", ")}.` : `It has no entries.`;
+  modal(`<div class="m-head"><h2>${esc(a.name)}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <p style="margin:.2rem 0 .9rem">${hist}</p>
+    <div class="list" style="gap:.6rem">${a.archived ? "" : `<button class="btn" id="adArch" style="text-align:left;white-space:normal"><b>Archive</b><br><span class="muted" style="font-weight:400">Hide this ${what} but keep all its history in your reports and balances.</span></button>`}
+    <button class="btn danger" id="adDel" style="text-align:left;white-space:normal"><b>Delete permanently</b><br><span style="font-weight:400">Removes the ${what}${parts.length ? ", its entries (including the other side of transfers) and its scheduled payments" : ""}. This can't be undone.</span></button></div>
+    <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); if ($("#adArch", m)) $("#adArch", m).onclick = () => { close(); accArchive(a); }; $("#adDel", m).onclick = () => { close(); accDeleteNow(a); }; });
+}
+function accInjectDel(a) {
+  const f = [...document.querySelectorAll(".m-foot")].pop(); const first = f && f.firstElementChild; if (!first || first.children.length || !a) return;
+  first.innerHTML = `<button class="btn danger" type="button" id="accDel">Delete or archive…</button>`;
+  first.firstChild.onclick = () => { const c = f.querySelector("[data-x]"); if (c) c.click(); accRemoveDlg(a); };
+}
+{ const _oa = openAccount; openAccount = function (a) { _oa.apply(this, arguments); if (a) accInjectDel(a); };
+  const _le = loanEditor; loanEditor = function (a) { _le.apply(this, arguments); if (a) accInjectDel(a); }; }
 
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
