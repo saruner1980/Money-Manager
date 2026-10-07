@@ -3019,8 +3019,8 @@ function rPayees(v, r, p) {
 /* ---------- Budget vs actual ---------- */
 function rBudgetVA(v, r, p) {
   const B = base(), bs = D().budgets || []; const end = todayISO(); const ms = monthsBetween(addMonths(end.slice(0, 8) + "01", -5), end);
-  const act = new Map(); const pids = [...new Set(bs.map(b => b.plan || 0))]; eachFlow(ms[0] + "-01", end, (k, c, val, t) => { if (k !== "exp" || !c) return; for (const pid of pids) { if (!planOk({ plan: pid }, t)) continue; const key = pid + "|" + topCat(c).id + "|" + t.d.slice(0, 7); act.set(key, (act.get(key) || 0) + val); const ck = key + "|" + ctryOf(accMap().get(t.a)); act.set(ck, (act.get(ck) || 0) + val); } });
-  const spent = (b, m) => bcats(b).reduce((s, c) => s + (act.get((b.plan || 0) + "|" + c + "|" + m + ((b.scope || "all") === "all" ? "" : "|" + b.scope)) || 0), 0);
+  const act = new Map(); const match = budMatcher(bs); eachFlow(ms[0] + "-01", end, (k, c, val, t) => { if (k !== "exp" || !c) return; const ct = ctryOf(accMap().get(t.a)); for (const b of match(c, ct)) { if (!planOk({ plan: b.plan || 0 }, t)) continue; const key = b.id + "|" + t.d.slice(0, 7); act.set(key, (act.get(key) || 0) + val); } });
+  const spent = (b, m) => act.get(b.id + "|" + m) || 0;
   v.innerHTML = `${repHead(r, `Last 6 months · in ${B}`)}
     ${bs.length ? `<div class="card"><div class="tbl free"><table class="pl"><thead><tr><th class="rl">Budget</th><th class="r">Limit</th>${ms.map(m => `<th class="r">${fmtMonth(m)}</th>`).join("")}<th class="r">Months over</th></tr></thead><tbody>
       ${bs.map(b => { const vals = ms.map(m => spent(b, m)); return `<tr><th class="rl">${esc(bname(b))}${(b.scope || "all") !== "all" ? ` <span class="faint">${b.scope}</span>` : ""}</th><td class="r money">${esc(compact(b.amt, B))}</td>${vals.map(x => { const f = x / b.amt; return `<td class="r money"><span class="bva ${f > 1 ? "high" : f > .8 ? "watch" : "good"}">${esc(compact(x, B).replace(curSym(B), "").trim())}</span></td>`; }).join("")}<td class="r"><b class="${vals.filter(x => x > b.amt).length ? "neg" : "pos"}">${vals.filter(x => x > b.amt).length}/${ms.length}</b></td></tr>`; }).join("")}</tbody></table></div></div>` : `<div class="card empty-state"><h2>No budgets yet</h2><p class="muted">Set budgets in Budgets, then come back to see them against actual spending.</p><button class="btn primary" data-go="budgets">Open Budgets</button></div>`}`;
@@ -4469,7 +4469,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-06 · d2f705"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-07 · cf3d0d"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -4499,10 +4499,10 @@ function wireFamily() { const url = location.origin + location.pathname.replace(
 /* ---------- Data & backup page: add the new cards ---------- */
 function vDataX(v) {
   vData(v); const g = v.querySelector("section.grid"); if (!g) return;
-  const html = gdCard() + liveCard() + installCard() + versionCard() + familyCard(); const tmp = document.createElement("div"); tmp.innerHTML = html;
+  const html = gdCard() + liveCard() + installCard() + versionCard() + tidyCard() + familyCard(); const tmp = document.createElement("div"); tmp.innerHTML = html;
   const ref = g.children[1] || null; [...tmp.children].forEach(n => g.insertBefore(n, ref));
   if (S.data?.meta?.sample) { const c = document.createElement("div"); c.className = "card span-6"; c.id = "rfCard"; c.innerHTML = `<div class="card-h"><h2>Restore a Money Ledger backup</h2></div><p class="muted" style="margin-top:0">Moving to a new device or to this web address? Pick the encrypted backup file you saved earlier ("Save encrypted backup") and enter its passphrase.</p><button class="btn primary" id="rfGo">Choose backup file</button>`; g.insertBefore(c, g.children[1] || null); $("#rfGo").onclick = restoreFile; }
-  wireGd(); wireLive(); wireInstall(); wireVersion(); wireFamily(); cloudChips();
+  wireGd(); wireLive(); wireInstall(); wireVersion(); wireTidy(); wireFamily(); cloudChips();
 }
 setTimeout(() => { try { if (GD.state.connected && gdValid()) syncNow({}); if (S.data && !S.data.meta?.sample && liveCfg().on && P6_hosted() && P6_online() && Date.now() - (liveCfg().at || 0) > 6 * 36e5) refreshPrices({ silent: true, force: true }); } catch (e) { } }, 5000);
 
@@ -4898,10 +4898,10 @@ function rTrends(v, r, p) {
 
 /* ================= Budgets rebuild ================= */
 function budHist(P, nM) {
-  const endM = P.month, ms = monthsBetween(addMonths(endM + "-01", -(nM - 1)), endM + "-01"), ci = new Map(ms.map((m, i) => [m, i])); const h = new Map(), tot = Array(nM).fill(0), inc = Array(nM).fill(0);
+  const endM = P.month, ms = monthsBetween(addMonths(endM + "-01", -(nM - 1)), endM + "-01"), ci = new Map(ms.map((m, i) => [m, i])); const h = new Map(), tot = Array(nM).fill(0), inc = Array(nM).fill(0); const bsx = (D().budgets || []).filter(b => (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0)), resB = budResolver(bsx), hb = new Map(bsx.map(b => [b.id, Array(nM).fill(0)]));
   eachFlow(ms[0] + "-01", monthEnd(endM), (k, c, val, t) => { if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; const i = ci.get(t.d.slice(0, 7)); if (i == null) return;
-    if (k === "inc") { inc[i] += val; return; } const tc = c ? topCat(c) : null; if (!tc) return; let a = h.get(tc.id); if (!a) { a = Array(nM).fill(0); h.set(tc.id, a); } a[i] += val; tot[i] += val; });
-  return { ms, h, tot, inc };
+    if (k === "inc") { inc[i] += val; return; } { const bm = c ? resB(c) : null; if (bm) hb.get(bm.id)[i] += val; } const tc = c ? topCat(c) : null; if (!tc) return; let a = h.get(tc.id); if (!a) { a = Array(nM).fill(0); h.set(tc.id, a); } a[i] += val; tot[i] += val; });
+  return { ms, h, tot, inc, hb };
 }
 function budPie(items, size = 150) {
   const tot = sumOf(items.map(i => i.v)) || 1, r = size / 2 - 8, c = size / 2; let a0 = -Math.PI / 2;
@@ -4909,8 +4909,8 @@ function budPie(items, size = 150) {
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="How the budget is split">${segs}</svg>`;
 }
 function budDaily(P, bs, dim) {
-  const ids = new Set(bs.flatMap(b => bcats(b))), a = Array(dim).fill(0);
-  eachFlow(P.month + "-01", monthEnd(P.month), (k, c, val, t) => { if (k !== "exp" || !c) return; if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; const tc = topCat(c); if (tc && ids.has(tc.id)) a[+t.d.slice(8) - 1] += val; });
+  const resB = budResolver(bs), a = Array(dim).fill(0);
+  eachFlow(P.month + "-01", monthEnd(P.month), (k, c, val, t) => { if (k !== "exp" || !c) return; if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; if (resB(c)) a[+t.d.slice(8) - 1] += val; });
   return a;
 }
 function paceChart(el, daily, totB, today, cur) {
@@ -4930,19 +4930,19 @@ function vBudgets(v) {
   const P = S2.pb ||= { month: todayISO().slice(0, 7), scope: "all" }; P.hn ||= 6; const B = base(), n = P.hn;
   budPlanFix(P); const bs = (D().budgets ||= []).filter(b => (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0)); const H = budHist(P, 12); const idx = 11, spent = new Map([...H.h].map(([k, a]) => [k, a[idx]]));
   const dim = new Date(+P.month.slice(0, 4), +P.month.slice(5, 7), 0).getDate(), isCur = P.month === todayISO().slice(0, 7), today = isCur ? new Date().getDate() : 0, dayFrac = isCur ? today / dim : 1, left = isCur ? dim - today : 0;
-  const totB = sumOf(bs.map(b => b.amt)), totS = sumOf(bs.map(b => sumOf(bcats(b).map(c => spent.get(c) || 0)))), expect = totB * dayFrac, projT = isCur && today >= 3 ? totS / dayFrac : totS, income = H.inc[idx], allSpent = H.tot[idx];
+  const totB = sumOf(bs.map(b => b.amt)), totS = sumOf(bs.map(b => (H.hb.get(b.id) || [])[idx] || 0)), expect = totB * dayFrac, projT = isCur && today >= 3 ? totS / dayFrac : totS, income = H.inc[idx], allSpent = H.tot[idx];
   const safeDay = isCur && left > 0 ? Math.max(0, totB - totS) / left : null; const col = f => f > 1 ? "var(--neg)" : f > .85 ? "var(--accent2)" : "var(--pos)";
-  const info = bs.map((b, i) => { const a = bseries(H.h, b, 12), s = a[idx], past = a.slice(12 - n - 1, 11).filter((_, j, arr) => true), prior = a.slice(12 - n - 1, 11), brk = prior.filter(x => x > b.amt).length, av = avgOf(prior), mxp = Math.max(0, ...prior); return { b, a, s, f: b.amt ? s / b.amt : 0, brk, av, mxp, prior, proj: isCur && today >= 3 ? s / dayFrac : s, c: { name: bname(b) }, i }; });
+  const info = bs.map((b, i) => { const a = H.hb.get(b.id) || Array(12).fill(0), s = a[idx], past = a.slice(12 - n - 1, 11).filter((_, j, arr) => true), prior = a.slice(12 - n - 1, 11), brk = prior.filter(x => x > b.amt).length, av = avgOf(prior), mxp = Math.max(0, ...prior); return { b, a, s, f: b.amt ? s / b.amt : 0, brk, av, mxp, prior, proj: isCur && today >= 3 ? s / dayFrac : s, c: { name: bname(b) }, i }; });
   const ins = [];
   info.filter(x => x.brk >= 3 && x.prior.length >= 4).sort((a, b) => b.brk - a.brk).slice(0, 2).forEach(x => ins.push({ t: "warn", ic: "target", h: `${x.c?.name} is over budget most months`, p: `Went over in ${x.brk} of the last ${x.prior.length} months (average ${compact(x.av, B)} against a ${compact(x.b.amt, B)} limit). Raising it to about ${compact(Math.ceil(x.av * 1.05 / 50) * 50, B)} would match reality.`, act: `data-edit="${x.b.id}"`, al: "Adjust" }));
   info.filter(x => x.prior.length >= 4 && x.mxp < x.b.amt * .7 && x.b.amt > 0).sort((a, b) => (b.b.amt - b.mxp) - (a.b.amt - a.mxp)).slice(0, 2).forEach(x => ins.push({ t: "good", ic: "check", h: `${x.c?.name} budget looks too loose`, p: `Never above ${compact(x.mxp, B)} in ${x.prior.length} months, yet the limit is ${compact(x.b.amt, B)}. Trimming to ${compact(Math.ceil(x.mxp * 1.1 / 50) * 50, B)} frees ${compact(x.b.amt - Math.ceil(x.mxp * 1.1 / 50) * 50, B)} a month.`, act: `data-edit="${x.b.id}"`, al: "Adjust" }));
-  const have = new Set(bs.flatMap(b => bcats(b))), ub = [...H.h].filter(([k]) => !have.has(k)).map(([k, a]) => ({ k, av: avgOf(a.slice(6)), s: a[idx] })).filter(x => x.av > 0).sort((a, b) => b.av - a.av);
+  const have = new Set(bs.flatMap(b => bcats(b)).map(c => topCat(c)?.id)), ub = [...H.h].filter(([k]) => !have.has(k)).map(([k, a]) => ({ k, av: avgOf(a.slice(6)), s: a[idx] })).filter(x => x.av > 0).sort((a, b) => b.av - a.av);
   ub.slice(0, 2).filter(x => x.av > (allSpent || 1) * .04).forEach(x => ins.push({ t: "info", ic: "wallet", h: `${catMap().get(x.k)?.name || "Category"} has no budget`, p: `You spend about ${compact(x.av, B)} a month on it${x.s ? ` (${compact(x.s, B)} this month)` : ""}. A limit of ${compact(Math.ceil(x.av * 1.05 / 50) * 50, B)} would cover it.`, act: `data-addc="${x.k}" data-amt="${Math.ceil(x.av * 1.05 / 50) * 50}"`, al: "Add budget" }));
   if (isCur && bs.length) { const hot = info.filter(x => x.proj > x.b.amt * 1.05 && x.f <= 1).sort((a, b) => (b.proj - b.b.amt) - (a.proj - a.b.amt))[0]; if (hot) ins.push({ t: "warn", ic: "forecast", h: `${hot.c?.name} is heading over`, p: `${compact(hot.s, B)} spent with ${left} days left. At this pace it ends near ${compact(hot.proj, B)}, ${compact(hot.proj - hot.b.amt, B)} above its limit.` }); }
   const best = info.filter(x => x.prior.length >= 4 && x.brk === 0).sort((a, b) => b.b.amt - a.b.amt)[0]; if (best) ins.push({ t: "good", ic: "target", h: `${best.c?.name}: on budget every month`, p: `Stayed under ${compact(best.b.amt, B)} for the last ${best.prior.length} months running.` });
-  let streak = 0; for (let j = 10; j >= 0 && totB > 0; j--) { const bsum = sumOf(bs.map(b => bseries(H.h, b, 12)[j] || 0)); if (bsum <= totB) streak++; else break; } if (streak >= 2) ins.push({ t: "good", ic: "sparkle", h: `${streak} months in a row within the total budget`, p: `Combined spending on budgeted categories stayed under ${compact(totB, B)} each month.` });
+  let streak = 0; for (let j = 10; j >= 0 && totB > 0; j--) { const bsum = sumOf(bs.map(b => (H.hb.get(b.id) || [])[j] || 0)); if (bsum <= totB) streak++; else break; } if (streak >= 2) ins.push({ t: "good", ic: "sparkle", h: `${streak} months in a row within the total budget`, p: `Combined spending on budgeted categories stayed under ${compact(totB, B)} each month.` });
   const planned = totB, saved = income - allSpent, unalloc = income - totB, pieC = (i) => `var(--c${(i % 8) + 1})`;
-  const hist = n === 12 ? 12 : n; const hm = H.ms.slice(12 - hist), hv = hm.map((m, j) => sumOf(bs.map(b => bseries(H.h, b, 12)[12 - hist + j] || 0)));
+  const hist = n === 12 ? 12 : n; const hm = H.ms.slice(12 - hist), hv = hm.map((m, j) => sumOf(bs.map(b => (H.hb.get(b.id) || [])[12 - hist + j] || 0)));
   v.innerHTML = `${topbar("Budgets", `Monthly limits by category, in ${B}`, `<button class="btn" id="sug">${icon("sparkle")}Suggest from my average</button><button class="btn primary" id="addB">${icon("plus")}Add category limit</button>`)}
     <div class="toolbar"><div class="calhead" style="margin:0"><button class="ibtn" data-bm="-1" aria-label="Previous month">‹</button><b>${fmtMonth(P.month).replace(" ", " 20")}</b><button class="ibtn" data-bm="1" aria-label="Next month">›</button></div>
       <div class="seg" role="group">${[["all", "All countries"], ...usedCtrys().map(c => [c.id, c.name])].map(([k, l]) => `<button data-bs="${k}" aria-pressed="${P.scope === k}">${l}</button>`).join("")}</div>
@@ -4971,7 +4971,7 @@ function vBudgets(v) {
   v.querySelectorAll("[data-addc]").forEach(c => c.onclick = () => { D().budgets.push(stamp({ id: newId(), cat: +c.dataset.addc, amt: +c.dataset.amt, scope: P.scope, plan: P.plan || 0 })); changed(); renderApp(); toast("Budget added"); });
   $("#addB").onclick = () => budgetEditor(null);
   $("#sug").onclick = () => { const avg = new Map(); const e = todayISO(); eachFlow(addMonths(e.slice(0, 8) + "01", -12), isoLocal(new Date(+e.slice(0, 4), +e.slice(5, 7) - 1, 0)), (k, c, val, t) => { if (k !== "exp" || !c) return; if (P.scope !== "all" && ctryOf(accMap().get(t.a)) !== P.scope) return; if (!planOk(P, t)) return; const tc = topCat(c); avg.set(tc.id, (avg.get(tc.id) || 0) + val / 12); });
-    let m = 0; for (const [cat, a] of [...avg.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10)) { if (a < 50 || D().budgets.some(b => bcats(b).includes(cat) && (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0))) continue; D().budgets.push(stamp({ id: newId(), cat, amt: Math.ceil(a / 50) * 50, scope: P.scope, plan: P.plan || 0 })); m++; }
+    let m = 0; for (const [cat, a] of [...avg.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10)) { if (a < 50 || D().budgets.some(b => bcats(b).some(c => topCat(c)?.id === cat) && (b.scope || "all") === P.scope && (b.plan || 0) === (P.plan || 0))) continue; D().budgets.push(stamp({ id: newId(), cat, amt: Math.ceil(a / 50) * 50, scope: P.scope, plan: P.plan || 0 })); m++; }
     changed(); renderApp(); toast(m ? `Added ${m} budgets from your 12-month average` : "Budgets already cover your main categories"); };
   requestAnimationFrame(() => { if (!bs.length || !$("#bpace")) return; paceChart($("#bpace"), budDaily(P, bs, dim), totB, today, B);
     const el = $("#bhist"); if (!el) return; const W = Math.max(300, el.clientWidth || 640), Hh = 230, L = 62, R = 8, T = 10, B2 = 26, k = hm.length; const ticks = niceTicks(0, Math.max(totB, ...hv, 1)), mx = ticks.at(-1), y = q => T + (mx - q) / mx * (Hh - T - B2), slot = (W - L - R) / k, bw = Math.max(8, Math.min(34, slot - 8));
@@ -5566,28 +5566,46 @@ function planEditor(id) {
       schedConfirm(`Delete “${esc(pl.name)}”?`, `Its ${n} category limit${n === 1 ? "" : "s"} will be removed too. Your entries are not affected.`, "Delete", () => { for (const b of (D().budgets || []).filter(b => (b.plan || 0) === pl.id)) tomb("budget", b.id); D().budgets = D().budgets.filter(b => (b.plan || 0) !== pl.id); D().budgetPlans = D().budgetPlans.filter(p => p.id !== pl.id); tomb("budgetplan", pl.id); if (P.plan === pl.id) P.plan = 0; changed(); renderApp(); toast("Deleted"); }); };
   });
 }
-/* a limit can cover several categories: b.cats = [ids] (b.cat stays the first one), optional b.name */
+/* a limit covers one or more categories (a main category includes its subcategories); the most specific limit wins */
 function bcats(b) { return b.cats && b.cats.length ? b.cats : [b.cat]; }
-function bname(b) { return b.name || bcats(b).map(c => catMap().get(c)?.name).filter(Boolean).join(" + ") || "Category"; }
-function bseries(h, b, n) { const out = Array(n).fill(0); for (const c of bcats(b)) { const a = h.get(c); if (a) for (let i = 0; i < n; i++) out[i] += a[i] || 0; } return out; }
+const fullCat = id => { const c = catMap().get(id); if (!c) return ""; const p = c.parent && catMap().get(c.parent); return p ? p.name + " › " + c.name : c.name; };
+function bname(b) { return b.name || bcats(b).map(fullCat).filter(Boolean).join(" + ") || "Category"; }
+function budResolver(bs) { const idx = new Map(); for (const b of bs) for (const c of bcats(b)) if (!idx.has(c)) idx.set(c, b); const memo = new Map();
+  return cid => { if (memo.has(cid)) return memo.get(cid); let r = null, c = catMap().get(cid), n = 0; while (c && n++ < 6) { if (idx.has(c.id)) { r = idx.get(c.id); break; } c = c.parent ? catMap().get(c.parent) : null; } memo.set(cid, r); return r; }; }
+function budMatcher(bs) { const gr = new Map(); for (const b of bs) { const k = (b.plan || 0) + "|" + (b.scope || "all"); if (!gr.has(k)) gr.set(k, []); gr.get(k).push(b); }
+  const gs = [...gr.values()].map(l => ({ scope: l[0].scope || "all", res: budResolver(l) })); return (cid, ct) => { const out = []; for (const g of gs) { if (g.scope !== "all" && g.scope !== ct) continue; const b = g.res(cid); if (b) out.push(b); } return out; }; }
+function catSpend12() { const end = todayISO(), from = addMonths(end.slice(0, 8) + "01", -11), m = new Map(); eachFlow(from, end, (k, c, val) => { if (k === "exp" && c) m.set(c, (m.get(c) || 0) + val); }); return m; }
 function budgetEditor(b) {
   const P = S2.pb, isNew = !b; b = b || { cat: null, amt: 0, scope: P.scope, plan: P.plan || 0 };
-  const plans = budPlans(), chosen = new Set(isNew ? [] : bcats(b));
-  const roots = D().cats.filter(c => c.type === "exp" && (!c.parent || !catMap().get(c.parent))).sort((x, y) => x.name.localeCompare(y.name));
+  const plans = budPlans(), chosen = new Set(isNew ? [] : bcats(b)), B = base(), sp = catSpend12(), cs = D().cats.filter(c => c.type === "exp"), cm = catMap();
+  const roots = cs.filter(c => !c.parent || !cm.get(c.parent)), subsOf = r => cs.filter(c => c.parent === r.id).sort((x, y) => x.name.localeCompare(y.name));
+  const rootSp = r => (sp.get(r.id) || 0) + subsOf(r).reduce((s, k) => s + (sp.get(k.id) || 0), 0), hasChosen = r => chosen.has(r.id) || subsOf(r).some(k => chosen.has(k.id));
+  const used = roots.filter(r => rootSp(r) > 0 || hasChosen(r)).sort((x, y) => rootSp(y) - rootSp(x)), unused = roots.filter(r => !(rootSp(r) > 0 || hasChosen(r))).sort((x, y) => x.name.localeCompare(y.name));
+  const open = new Set(roots.filter(hasChosen).map(r => r.id)); let showUnused = false;
   const takenBy = () => { const pid = $("#bp") ? +$("#bp").value : (b.plan || 0), m = new Map(); for (const o of D().budgets || []) if (o !== b && (o.plan || 0) === pid && (o.scope || "all") === (b.scope || "all")) for (const c of bcats(o)) m.set(c, bname(o)); return m; };
   modal(`<div class="m-head"><h2>${isNew ? "Add category limit" : "Edit category limit"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <form class="form" novalidate>${plans.length > 1 ? `<label class="full">Budget<select id="bp">${plans.map(p => `<option value="${p.id}" ${p.id === (b.plan || 0) ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>` : ""}
-      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Categories <span style="font-weight:400">· tick one, or several to share one limit</span></div><div class="fs" id="bcl" style="max-height:13rem"></div></div>
+      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Categories <span style="font-weight:400">· tick one or several to share one limit. Tap ▸ to pick just a subcategory such as Taxi. Amounts are the last 12 months.</span></div><div class="fs" id="bcl" style="max-height:16rem"></div><div id="bDup" class="muted" style="font-size:.78rem;margin-top:.35rem"></div></div>
       <label class="full">Name (optional)<input type="text" id="bn" value="${esc(b.name || "")}" placeholder="e.g. Daily life"></label>
-      <label>Monthly limit (${base()})<input type="number" id="ba" step="10" value="${b.amt || ""}"></label>
+      <label>Monthly limit (${B})<input type="number" id="ba" step="10" value="${b.amt || ""}"></label>
       <div class="full muted" style="font-size:.82rem" id="bAccN"></div></form><div id="bErr" class="err" hidden></div>
     <div class="m-foot"><div>${isNew ? "" : `<button class="btn danger" id="bd">Delete</button>`}</div><div class="row-btns"><button class="btn" id="bEA">Change accounts</button><button class="btn" data-x>Cancel</button><button class="btn primary" id="bs">Save</button></div></div>`,
   (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
     const pid = () => $("#bp", m) ? +$("#bp", m).value : (b.plan || 0), note = () => { $("#bAccN", m).textContent = "Counts spending from: " + planAccLine(planOf(pid())); };
-    const list = () => { const tk = takenBy(); $("#bcl", m).innerHTML = roots.map(c => { const o = tk.get(c.id); return `<label class="tgl" ${o ? 'style="opacity:.5"' : ""}><input type="checkbox" value="${c.id}" ${chosen.has(c.id) && !o ? "checked" : ""} ${o ? "disabled" : ""}> ${esc(c.name)}${o ? ` <span class="faint">in ${esc(o)}</span>` : ""}</label>`; }).join(""); m.querySelectorAll("#bcl input").forEach(i => i.onchange = () => { i.checked ? chosen.add(+i.value) : chosen.delete(+i.value); }); };
+    const money = v => v > 0 ? compact(v, B) : "no entries";
+    const rowOf = (c, tk, off, sub, lab) => { const o = tk.get(c.id), dis = !!o || off, ck = chosen.has(c.id) || off; return `<label class="tgl bcrow ${sub ? "bsubr" : ""}" ${dis ? 'style="opacity:.55"' : ""}><input type="checkbox" value="${c.id}" ${ck ? "checked" : ""} ${dis ? "disabled" : ""}> <span class="bcn">${esc(c.name)}</span> <span class="faint">${o ? `in ${esc(o)}` : off ? "included above" : esc(lab || money(sp.get(c.id) || 0))}</span></label>`; };
+    const rootBlock = (r, tk) => { const ks = subsOf(r), off = chosen.has(r.id), ex = open.has(r.id);
+      return `<div class="bcblk"><div class="bcr">${rowOf(r, tk, false, false, money(rootSp(r)))}${ks.length ? `<button type="button" class="lnk bcx" data-ex="${r.id}" aria-label="Show subcategories">${ex ? "▾" : "▸"} ${ks.length}</button>` : ""}</div>${ks.length && ex ? `<div class="bsub">${ks.map(k => rowOf(k, tk, off, true)).join("")}</div>` : ""}</div>`; };
+    const list = () => { const tk = takenBy(), box = $("#bcl", m), top = box.scrollTop;
+      box.innerHTML = used.map(r => rootBlock(r, tk)).join("") + (unused.length ? `<button type="button" class="lnk" id="bUn" style="margin:.5rem 0">${showUnused ? "Hide" : "Show"} categories with no entries (${unused.length})</button>${showUnused ? unused.map(r => rootBlock(r, tk)).join("") : ""}` : "");
+      box.scrollTop = top; const dupN = new Set(roots.map(r => r.name.toLowerCase())).size < roots.length; $("#bDup", m).innerHTML = dupN ? `Same names twice? <button type="button" class="lnk" id="bTidy">Merge duplicate categories</button>` : "";
+      if ($("#bTidy", m)) $("#bTidy", m).onclick = () => { close(); catTidyDlg(); };
+      box.querySelectorAll("input[type=checkbox]").forEach(i => i.onchange = () => { const id = +i.value; if (i.checked) chosen.add(id); else chosen.delete(id); const r = roots.find(x => x.id === id); if (r && i.checked) for (const k of subsOf(r)) chosen.delete(k.id); list(); });
+      box.querySelectorAll("[data-ex]").forEach(x => x.onclick = () => { const id = +x.dataset.ex; open.has(id) ? open.delete(id) : open.add(id); list(); }); if ($("#bUn", m)) $("#bUn", m).onclick = () => { showUnused = !showUnused; list(); }; };
     note(); list(); if ($("#bp", m)) $("#bp", m).onchange = () => { note(); list(); };
     $("#bEA", m).onclick = () => { close(); planEditor(pid()); };
-    $("#bs", m).onclick = () => { const amt = +$("#ba", m).value, er = $("#bErr", m), tk = takenBy(); const ids = roots.map(c => c.id).filter(id => chosen.has(id) && !tk.has(id));
+    $("#bs", m).onclick = () => { const amt = +$("#ba", m).value, er = $("#bErr", m), tk = takenBy(); let ids = [...chosen].filter(id => !tk.has(id) && cm.get(id));
+      ids = ids.filter(id => { let c = cm.get(id), n = 0; while (c && c.parent && n++ < 6) { c = cm.get(c.parent); if (c && ids.includes(c.id)) return false; } return true; });
       if (!ids.length) { er.hidden = false; er.textContent = "Tick at least one category."; return; } if (!(amt > 0)) { er.hidden = false; er.textContent = "Enter the monthly limit."; return; }
       const nm = clean($("#bn", m).value); Object.assign(b, { cat: ids[0], amt, plan: pid() }); if (ids.length > 1) b.cats = ids; else delete b.cats; if (nm) b.name = nm; else delete b.name;
       if (isNew) { b.id = newId(); D().budgets.push(b); } P.plan = b.plan; stamp(b); changed(); close(); renderApp(); };
@@ -5609,13 +5627,13 @@ function weekData(planId, scope, ym, today = todayISO()) {
   const mFrom = ym + "-01", mTo = monthEnd(ym), dim = +mTo.slice(8), weeks = []; let ws = wkMon(mFrom);
   while (ws <= mTo) { const we = addDays(ws, 6), from = ws < mFrom ? mFrom : ws, to = we > mTo ? mTo : we; weeks.push({ ws, we, from, to, days: dDiff(from, to) + 1, part: ws < mFrom || we > mTo }); ws = addDays(ws, 7); }
   const pws = addDays(wkMon(today), -7), pwe = addDays(pws, 6), f0 = pws < mFrom ? pws : mFrom, t0 = pwe > mTo ? pwe : mTo;
-  const byB = new Map(bs.map(b => [b.id, new Map()])), byCat = new Map(); for (const b of bs) for (const c of bcats(b)) { if (!byCat.has(c)) byCat.set(c, []); byCat.get(c).push(b); }
-  if (bs.length) eachFlow(f0, t0, (k, c, val, t) => { if (k !== "exp" || !c) return; if (pl.accs && !pl.accs.includes(t.a)) return; const tc = topCat(c), l = tc && byCat.get(tc.id); if (!l) return; const ct = ctryOf(accMap().get(t.a));
-    for (const b of l) { const sc = b.scope || "all"; if (sc !== "all" && sc !== ct) continue; const m = byB.get(b.id); m.set(t.d, (m.get(t.d) || 0) + val); } });
+  const byB = new Map(bs.map(b => [b.id, new Map()])), items = [], match = budMatcher(bs);
+  if (bs.length) eachFlow(f0, t0, (k, c, val, t) => { if (k !== "exp" || !c) return; if (pl.accs && !pl.accs.includes(t.a)) return; const ct = ctryOf(accMap().get(t.a));
+    for (const b of match(c, ct)) { const m = byB.get(b.id); m.set(t.d, (m.get(t.d) || 0) + val); items.push({ t, c, val, b }); } });
   const tot = new Map(); for (const m of byB.values()) for (const [d, v] of m) tot.set(d, (tot.get(d) || 0) + v);
   const T = sumOf(bs.map(b => b.amt)), rows = weekCalc(T, tot, weeks, today, mTo), cur = rows.findIndex(w => w.cur);
   let ps = 0; for (const [d, v] of tot) if (d >= pws && d <= pwe) ps += v; const prow = rows.find(w => w.ws === pws && !w.part);
-  return { pl, bs, T, dim, weeks: rows, cur, prior: { ws: pws, we: pwe, spent: ps, allow: prow ? prow.allow : T * 7 / dim }, cats: bs.map(b => ({ b, weeks: weekCalc(b.amt, byB.get(b.id), weeks, today, mTo) })), mTo };
+  return { pl, bs, T, dim, weeks: rows, cur, prior: { ws: pws, we: pwe, spent: ps, allow: prow ? prow.allow : T * 7 / dim }, cats: bs.map(b => ({ b, weeks: weekCalc(b.amt, byB.get(b.id), weeks, today, mTo) })), mTo, items };
 }
 const wkCol = f => f > 1 ? "var(--neg)" : f >= .8 ? "var(--accent2)" : "var(--pos)";
 function wkStatus(w) { const f = w.allow > 0 ? w.spent / w.allow : (w.spent > 0 ? 2 : 0); return { f, col: wkCol(f), t: f > 1 ? "over" : f >= .8 ? "near" : "good" }; }
@@ -5635,21 +5653,31 @@ function weekCardHTML(d, today) {
       ${pr.allow > 0 ? `<div class="wkmsg" style="color:${pr.spent > pr.allow ? "var(--neg)" : "var(--pos)"}">${pr.spent > pr.allow ? `${esc(compact(pr.spent - pr.allow, B))} over` : `${esc(compact(pr.allow - pr.spent, B))} under`}</div>` : ""}</div>`;
     hero += `<div class="wkbox"><div class="wkh">${nx ? `Next week · ${esc(wkLabel(nx.from, nx.to))}` : "Next week"}</div>${nx ? `<div class="wkbig money">${esc(compact(nx.allow, B))}</div><div class="muted" style="font-size:.8rem">you can spend</div>${(() => { const base0 = d.T * nx.days / d.dim, df = nx.allow - base0; return Math.abs(df) > d.T * .01 ? `<div class="wkmsg" style="color:${df < 0 ? "var(--neg)" : "var(--pos)"}">${esc(compact(Math.abs(df), B))} ${df < 0 ? "less" : "more"} than planned (${esc(compact(base0, B))})</div>` : `<div class="muted" style="font-size:.8rem">as planned</div>`; })()}` : `<div class="muted" style="font-size:.86rem;margin-top:.4rem">Next week falls in next month’s budget.</div>`}</div>`;
   } else hero = `<div class="muted" style="margin-bottom:.6rem">Week by week for ${esc(fmtMonth(d.mTo.slice(0, 7)))}.</div>`;
-  const rows = d.weeks.map(x => { const s = wkStatus(x), fut = x.from > now; return `<div class="wkr ${x.cur ? "cur" : ""}"><div class="wkn"><b>${esc(wkLabel(x.from, x.to))}</b>${x.cur ? ` <span class="chg g">This week</span>` : ""}${x.part ? ` <span class="faint" style="font-size:.7rem">part</span>` : ""}</div>
+  const rows = d.weeks.map((x, wi) => { const s = wkStatus(x), fut = x.from > now; return `<div class="wkr wkclk ${x.cur ? "cur" : ""}" data-wki="${wi}" role="button" tabindex="0"><div class="wkn"><b>${esc(wkLabel(x.from, x.to))}</b>${x.cur ? ` <span class="chg g">This week</span>` : ""}${x.part ? ` <span class="faint" style="font-size:.7rem">part</span>` : ""}</div>
     <div class="wkbar"><i style="width:${Math.min(100, fut ? 0 : s.f * 100).toFixed(1)}%;background:${s.col}"></i></div>
     <div class="wkv"><span>${fut ? "–" : esc(compact(x.spent, B))}</span><span class="faint">of ${esc(compact(x.allow, B))}</span><b class="money" style="color:${fut ? "var(--ink)" : x.left >= 0 ? "var(--pos)" : "var(--neg)"}">${fut ? esc(compact(x.allow, B)) : (x.left >= 0 ? "" : "−") + esc(compact(Math.abs(x.left), B))}</b></div></div>`; }).join("");
   const cats = w ? d.cats.map(c => ({ b: c.b, w: c.weeks[d.cur] })).sort((x, y) => y.w.spent / (y.w.allow || 1) - x.w.spent / (x.w.allow || 1)) : [];
   return `<div class="card span-12 wkcard"><div class="card-h"><h2>Weekly spending</h2><span class="note">Monday to Sunday · ${esc(compact(d.T, B))} a month in ${esc(d.pl.name)}</span></div>
     <div class="wkhero">${hero}</div>
-    <h3 class="bhead">Week by week</h3><div class="wklist"><div class="wkr wkhd"><div>Week</div><div></div><div class="wkv"><span>Spent</span><span></span><b>Left / can spend</b></div></div>${rows}</div>
-    ${cats.length ? `<details class="wkcats"><summary><b>This week by category</b> <span class="muted">· ${cats.length} limit${cats.length === 1 ? "" : "s"}</span></summary><div class="wklist">${cats.map(({ b, w: cw }) => { const s = wkStatus(cw); return `<div class="wkr"><div class="wkn"><b>${esc(bname(b))}</b></div><div class="wkbar"><i style="width:${Math.min(100, s.f * 100).toFixed(1)}%;background:${s.col}"></i></div><div class="wkv"><span>${esc(compact(cw.spent, B))}</span><span class="faint">of ${esc(compact(cw.allow, B))}</span><b class="money" style="color:${cw.left >= 0 ? "var(--pos)" : "var(--neg)"}">${cw.left >= 0 ? "" : "−"}${esc(compact(Math.abs(cw.left), B))}</b></div></div>`; }).join("")}</div></details>` : ""}</div>`;
+    <h3 class="bhead">Week by week <span class="muted" style="font-weight:400;font-size:.78rem">· tap a week to see its expenses</span></h3><div class="wklist"><div class="wkr wkhd"><div>Week</div><div></div><div class="wkv"><span>Spent</span><span></span><b>Left / can spend</b></div></div>${rows}</div>
+    ${cats.length ? `<details class="wkcats"><summary><b>This week by category</b> <span class="muted">· ${cats.length} limit${cats.length === 1 ? "" : "s"}</span></summary><div class="wklist">${cats.map(({ b, w: cw }) => { const s = wkStatus(cw); return `<div class="wkr wkclk" data-wkb="${b.id}" role="button" tabindex="0"><div class="wkn"><b>${esc(bname(b))}</b></div><div class="wkbar"><i style="width:${Math.min(100, s.f * 100).toFixed(1)}%;background:${s.col}"></i></div><div class="wkv"><span>${esc(compact(cw.spent, B))}</span><span class="faint">of ${esc(compact(cw.allow, B))}</span><b class="money" style="color:${cw.left >= 0 ? "var(--pos)" : "var(--neg)"}">${cw.left >= 0 ? "" : "−"}${esc(compact(Math.abs(cw.left), B))}</b></div></div>`; }).join("")}</div></details>` : ""}</div>`;
 }
+function wkWire(card, d) { card.querySelectorAll("[data-wki]").forEach(r => { const f = () => wkDrill(d, +r.dataset.wki, null); r.onclick = f; r.onkeydown = e => { if (e.key === "Enter") f(); }; });
+  card.querySelectorAll("[data-wkb]").forEach(r => { const f = () => wkDrill(d, d.cur, +r.dataset.wkb); r.onclick = f; r.onkeydown = e => { if (e.key === "Enter") f(); }; }); }
+function wkDrill(d, wi, bid) {
+  const w = d.weeks[wi]; if (!w) return; const B = base(), lim = bid == null ? null : d.bs.find(b => b.id === bid);
+  const its = d.items.filter(x => x.t.d >= w.from && x.t.d <= w.to && (bid == null || x.b.id === bid)).sort((x, y) => y.t.d.localeCompare(x.t.d) || y.val - x.val), tot = its.reduce((s, x) => s + x.val, 0), fut = w.from > todayISO();
+  const am = accMap(); const body = its.length ? `<div class="list wkdl">${its.map((x, i) => `<div class="row wkdr" data-i="${i}" role="button" tabindex="0" style="display:flex;gap:.6rem;align-items:flex-start"><div class="r-main" style="flex:1;min-width:0"><div class="r-t">${esc(x.t.p ? payName(x.t.p) : x.t.ds || "No description")}</div><div class="r-s muted" style="white-space:normal;overflow:visible;text-overflow:clip">${esc(fmtDate(x.t.d))} · ${esc(fullCat(x.c))}${bid == null && bname(x.b) !== fullCat(x.c) ? ` · ${esc(bname(x.b))}` : ""} · ${esc(am.get(x.t.a)?.name || "")}</div></div><div class="r-v money" style="flex:none;white-space:nowrap;font-weight:700">${esc(compact(x.val, B))}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:.4rem 0">${fut ? "This week hasn't started yet." : "No spending counted against this budget in this week."}</p>`;
+  modal(`<div class="m-head"><h2>${esc(wkLabel(w.from, w.to))}${lim ? ` · ${esc(bname(lim))}` : ""}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <div class="muted" style="font-size:.85rem;margin-bottom:.5rem">${its.length} expense${its.length === 1 ? "" : "s"} · <b class="money">${esc(compact(tot, B))}</b> spent${fut ? "" : ` of ${esc(compact(bid == null ? w.allow : d.cats.find(c => c.b.id === bid)?.weeks[wi]?.allow || 0, B))}`}</div>${body}
+    <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Close</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); m.querySelectorAll(".wkdr").forEach(r => { const f = () => { const it = its[+r.dataset.i]; close(); openTx(it.t); }; r.onclick = f; r.onkeydown = e => { if (e.key === "Enter") f(); }; }); }); }
 function budWeekMount(v, P, bs) {
   budPlanFix(P); const plans = budPlans(), pl = planOf(P.plan || 0);
   const bar = document.createElement("div"); bar.className = "plans";
   bar.innerHTML = `<div class="seg" role="group" aria-label="Budgets">${plans.map(p => `<button data-plan="${p.id}" aria-pressed="${p.id === pl.id}">${esc(p.name)}</button>`).join("")}</div><button class="btn sm" id="planNew">${icon("plus")}New budget</button><button class="btn sm" id="planEdit">Name and accounts</button><span class="muted plans-n">Counts spending from: ${esc(planAccLine(pl))}</span>`;
   const tb = v.querySelector(".toolbar"); if (tb) tb.parentNode.insertBefore(bar, tb); else v.prepend(bar);
-  const d = weekData(pl.id, P.scope, P.month), g = v.querySelector("section.grid"); if (g) { const t = document.createElement("div"); t.innerHTML = weekCardHTML(d); g.insertBefore(t.firstElementChild, g.firstChild); }
+  const d = weekData(pl.id, P.scope, P.month), g = v.querySelector("section.grid"); if (g) { const t = document.createElement("div"); t.innerHTML = weekCardHTML(d); const card = t.firstElementChild; wkWire(card, d); g.insertBefore(card, g.firstChild); }
   bar.querySelectorAll("[data-plan]").forEach(b => b.onclick = () => { P.plan = +b.dataset.plan; renderApp(); });
   $("#planNew", bar).onclick = () => planEditor(null); $("#planEdit", bar).onclick = () => planEditor(pl.id);
 }
@@ -5675,7 +5703,7 @@ function weekHomeMount(v) {
 .plans{display:flex;align-items:center;gap:.5rem .7rem;flex-wrap:wrap;margin:.2rem 0 .8rem}.plans-n{font-size:.8rem}
 .wkhero{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.8rem;margin-bottom:.4rem}.wkbox{padding:.9rem 1rem;border-radius:var(--r-md);background:var(--surface2);min-width:0}.wkh{font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.5rem}
 .wkb{display:flex;align-items:center;gap:1rem}.wkbig{font:800 1.6rem var(--f-display);line-height:1.15}.wkmsg{font-weight:700;font-size:.84rem;margin-top:.4rem}
-.wklist{display:flex;flex-direction:column}.wkr{display:grid;grid-template-columns:minmax(8.5rem,12rem) minmax(3rem,1fr) 17rem;gap:.8rem;align-items:center;padding:.5rem .4rem;border-top:1px solid var(--line);font-size:.86rem}.wkr.cur{background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:.7rem}.wkhd{font-size:.72rem;font-weight:700;color:var(--muted);border-top:0}
+.wklist{display:flex;flex-direction:column}.wkr{display:grid;grid-template-columns:minmax(8.5rem,12rem) minmax(3rem,1fr) 17rem;gap:.8rem;align-items:center;padding:.5rem .4rem;border-top:1px solid var(--line);font-size:.86rem}.wkdr .r-v{flex:none;white-space:nowrap;padding-left:.6rem}.wkdr .r-s{white-space:normal}.bcrow{display:flex!important;align-items:center;gap:.5rem}.bcrow .bcn{flex:1;min-width:0}.bcrow .faint{white-space:nowrap;font-size:.78rem}.wkclk{cursor:pointer}.wkclk:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}.wkdl{max-height:60vh;overflow:auto}.wkdr{cursor:pointer}.bcblk{border-bottom:1px solid var(--line)}.bcr{display:flex;align-items:center;gap:.4rem}.bcr .tgl{flex:1}.bsub{padding-left:1.4rem}.bcx{white-space:nowrap}.wkr.cur{background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:.7rem}.wkhd{font-size:.72rem;font-weight:700;color:var(--muted);border-top:0}
 .wkn{min-width:0}.wkn b{font-weight:700}.wkbar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden}.wkbar i{display:block;height:100%;border-radius:4px}
 .wkv{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem;text-align:right;white-space:nowrap}.wkv b{font-weight:800}
 .wkcats{margin-top:.8rem}.wkcats summary{cursor:pointer;padding:.3rem 0}
@@ -5735,6 +5763,56 @@ function accInjectDel(a) {
 }
 { const _oa = openAccount; openAccount = function (a) { _oa.apply(this, arguments); if (a) accInjectDel(a); };
   const _le = loanEditor; loanEditor = function (a) { _le.apply(this, arguments); if (a) accInjectDel(a); }; }
+
+/* ================= Phase 7b: merge duplicate categories ================= */
+const catNorm = s => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+function catDupes() {
+  const d = S.data, cm = new Map(d.cats.map(c => [c.id, c])), use = new Map(), roots = d.cats.filter(c => !c.parent || !cm.get(c.parent));
+  const bump = id => { const c = cm.get(id); if (!c) return; const r = c.parent && cm.get(c.parent) ? c.parent : c.id; use.set(r, (use.get(r) || 0) + 1); };
+  for (const t of d.tx) for (const p of t.c || []) bump(p[0]); for (const s of d.sched || []) for (const p of s.c || []) bump(p[0]);
+  const g = new Map(); for (const r of roots) { const k = r.type + "|" + catNorm(r.name); if (!g.has(k)) g.set(k, []); g.get(k).push(r); }
+  return [...g.values()].filter(l => l.length > 1).map(l => { l = l.slice().sort((a, b) => (use.get(b.id) || 0) - (use.get(a.id) || 0) || a.id - b.id); return { keep: l[0], drop: l.slice(1), use }; });
+}
+function catMerge() {
+  const d = S.data; S.catUndo = JSON.stringify(d); const groups = catDupes(), M = new Map(); let removed = 0;
+  for (const g of groups) for (const dr of g.drop) { M.set(dr.id, g.keep.id);
+    for (const s of d.cats.filter(c => c.parent === dr.id)) { const k = d.cats.find(c => c.parent === g.keep.id && catNorm(c.name) === catNorm(s.name)); if (k) M.set(s.id, k.id); else { s.parent = g.keep.id; stamp(s); } } }
+  if (!M.size) return 0; const mp = id => M.has(id) ? M.get(id) : id;
+  const fixPairs = arr => { if (!arr || !arr.length) return arr; const out = []; for (const p of arr) { const n = mp(p[0]), ex = out.find(x => x[0] === n && x.length === 2 && p.length === 2); if (ex) ex[1] = Math.round((ex[1] + p[1]) * 100) / 100; else out.push([n, ...p.slice(1)]); } return out; };
+  const touches = arr => (arr || []).some(p => M.has(p[0]));
+  for (const t of d.tx) if (touches(t.c)) { t.c = fixPairs(t.c); stamp(t); }
+  for (const s of d.sched || []) if (touches(s.c)) { s.c = fixPairs(s.c); stamp(s); }
+  for (const b of d.budgets || []) { if (b.cats) { b.cats = [...new Set(b.cats.map(mp))]; if (b.cats.length < 2) delete b.cats; } b.cat = mp(b.cat); stamp(b); }
+  for (const a of d.accounts) if (a.loan && M.has(a.loan.cat)) { a.loan.cat = mp(a.loan.cat); stamp(a); }
+  for (const p of d.properties || []) if (M.has(p.cat)) { p.cat = mp(p.cat); stamp(p); }
+  for (const r of d.rules || []) if (M.has(r.cat)) r.cat = mp(r.cat);
+  for (const p of d.payees || []) if (M.has(p.cat)) { p.cat = mp(p.cat); stamp(p); }
+  for (const sc of Object.values(d.settings?.scopes || {})) if (sc && Array.isArray(sc.cat)) sc.cat = [...new Set(sc.cat.map(mp))];
+  const fc = d.settings?.fc?.cats; if (fc) for (const k of Object.keys(fc)) { const parts = k.split("|"), id = +parts[2]; if (M.has(id)) { parts[2] = mp(id); const nk = parts.join("|"); if (!(nk in fc)) fc[nk] = fc[k]; delete fc[k]; } }
+  d.cats = d.cats.filter(c => { if (M.has(c.id)) { tombF("cat", c.id); removed++; return false; } return true; });
+  changed(); return removed;
+}
+function catTidyDlg() {
+  const gs = catDupes(); const B = base();
+  if (!gs.length) { toast("No duplicate category names found."); return; }
+  const n = gs.reduce((s, g) => s + g.drop.length, 0), moved = gs.reduce((s, g) => s + g.drop.reduce((x, r) => x + (g.use.get(r.id) || 0), 0), 0);
+  modal(`<div class="m-head"><h2>Merge duplicate categories</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <p class="muted" style="margin:0 0 .6rem">${gs.length} name${gs.length === 1 ? "" : "s"} appear more than once. In each case the copy with the most entries is kept. Entries, budgets, scheduled items and rules from the other copy move to it, subcategories with the same name are combined, and the empty copy is removed. ${moved ? `<b>${moved}</b> entr${moved === 1 ? "y" : "ies"} will move.` : "No entries need to move."}</p>
+    <div class="list">${gs.map(g => `<div class="row"><div class="r-main"><div class="r-t">${esc(g.keep.name)} <span class="faint">${g.keep.type === "inc" ? "income" : "expense"}</span></div><div class="r-s muted">keeps the copy with ${g.use.get(g.keep.id) || 0} entr${(g.use.get(g.keep.id) || 0) === 1 ? "y" : "ies"} · merges ${g.drop.length} other${g.drop.length === 1 ? "" : "s"} (${g.drop.map(r => g.use.get(r.id) || 0).join(", ")} entries)</div></div></div>`).join("")}</div>
+    <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">You can undo this from Data & backup until you close the app.</p>
+    <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="ctGo">Merge ${n} duplicate${n === 1 ? "" : "s"}</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); $("#ctGo", m).onclick = () => { close(); const r = catMerge(); renderApp(); toast(`Merged. ${r} duplicate categor${r === 1 ? "y" : "ies"} removed.`); }; });
+}
+function tidyCard() {
+  const gs = catDupes(), n = gs.reduce((s, g) => s + g.drop.length, 0);
+  return `<div class="card span-6" id="tidyCard"><div class="card-h"><h2>Duplicate categories</h2><span class="muted" style="font-size:.8rem">${n ? n + " found" : "None"}</span></div>
+    <p class="muted" style="margin-top:0">${n ? "Your backup has the same category names twice (for example two “Clothing”). Merging keeps the copy you actually use and moves everything across, so budgets and reports stay accurate." : "Every category name is unique."}</p>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">${n ? `<button class="btn primary" id="tidyGo">Review and merge</button>` : ""}${S.catUndo ? `<button class="btn" id="tidyUndo">Undo last merge</button>` : ""}</div></div>`;
+}
+function wireTidy() {
+  if ($("#tidyGo")) $("#tidyGo").onclick = catTidyDlg;
+  if ($("#tidyUndo")) $("#tidyUndo").onclick = () => { try { S.data = JSON.parse(S.catUndo); S.catUndo = null; changed(); renderApp(); toast("Merge undone"); } catch (e) { toast("Couldn't undo."); } };
+}
 
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
