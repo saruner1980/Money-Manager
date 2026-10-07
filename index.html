@@ -160,6 +160,7 @@ body.fx-off .gbody,body.fx-off .g-chev,body.fx-off .gface{transition:none}body.f
 @media (max-width:760px){.ggrid{grid-template-columns:1fr;gap:.85rem}.gface{min-height:7.4rem}.g-tot{font-size:1.45rem}}
 .fmode{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;padding:.8rem 1.1rem;margin-bottom:1rem}.fm-l{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}.fm-d{font-size:.8rem;flex:1;min-width:12rem}
 .fcsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;position:sticky;top:-1.4rem;z-index:2;background:var(--surface);padding:.4rem 0}.fcsum>div{background:var(--surface2);border-radius:.8rem;padding:.6rem .8rem;display:flex;flex-direction:column}.fcsum b{font-family:var(--f-display);font-size:1.1rem}.fcsum span{font-size:.72rem}
+.crow .r-t,.crow .r-s,.ufr .r-s,.ufr .r-t{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.crow .r-main,.ufr .r-main{min-width:0;flex:1}.card-h:has(#cQ){flex-wrap:wrap;gap:.6rem}#cQ{flex:1 1 10rem!important;max-width:none!important}.crow .r-amt,.crow .row-btns{flex-shrink:0}#cQ{padding:.5rem .8rem;border:1px solid var(--line);border-radius:.7rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0;flex:1}.fcadd{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0 .3rem}.fcadd select,.fcadd input{padding:.45rem .6rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0}.fcadd .fcAC{flex:1 1 9rem}.fcadd .fcAA{width:6.5rem}.fcs{margin-left:1.6rem;padding-top:.3rem;padding-bottom:.3rem;grid-template-columns:auto minmax(0,1fr) auto}.fcs .fcn b{font-weight:600;font-size:.88rem}.fcg{border-bottom:1px solid var(--line)}.fcg>.fcr,.fcg>.fcs{border-bottom:0}
 .fcl{display:flex;flex-direction:column}.fcr{display:grid;grid-template-columns:auto minmax(0,1fr) 7rem;gap:.7rem;align-items:center;padding:.5rem .3rem;border-bottom:1px solid var(--line);transition:opacity var(--dur)}
 .fcr.off{opacity:.45}.fcr.off .fcn b{text-decoration:line-through}.fcn{display:flex;flex-direction:column;min-width:0}.fcn span{font-size:.74rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fca{background:var(--surface2);border:1px solid var(--line);border-radius:.6rem;padding:.42rem .55rem;color:var(--ink);width:100%;text-align:right}
@@ -1020,6 +1021,7 @@ const NAV = [
   { id: "loans", label: "Loans", ic: "loan" },
   { id: "people", label: "Owe & owed", ic: "people" },
   { id: "budgets", label: "Budgets", ic: "budget" },
+  { id: "cats", label: "Categories", ic: "list" },
   { sec: "Wealth" },
   { id: "gold", label: "Gold", ic: "gold" },
   { id: "investments", label: "Investments", ic: "invest" },
@@ -2452,13 +2454,17 @@ const PRESETS = () => { const fc = fxPair(), r = fc ? rateOf(fc) : 0; return [
   { id: "optimistic", name: "Optimistic", lv: { income: 5, spend: -5, goldPct: 12, ...(fc ? { fxCur: fc, fxEnd: Math.round(r * .98 * 100) / 100 } : {}) } }]; };
 function scenarios() { return [...PRESETS(), ...(D().scenarios || [])]; }
 /* run: returns daily cash per currency (first `daysDetail` days), monthly snapshots up to `years`; internal maths in AED, shown in the base currency */
+/* a scheduled item the user has switched off in "My categories", by its own tick or because its whole category is unticked */
+function fcSchedKey(s, am) { const a = am.get(s.a); if (!a || s.t === "tr") return null; const c = s.c?.[0]?.[0]; const kind = c ? catMap().get(c)?.type || (s.v < 0 ? "exp" : "inc") : (s.v < 0 ? "exp" : "inc"); return a.cur + "|" + kind + "|" + (c ? topCat(c)?.id : 0); }
+function fcSchedOff(s, OV, am) { if (!OV || !Object.keys(OV).length) return false; if (OV["s:" + s.id]?.off) return true; const k = fcSchedKey(s, am); return !!(k && OV[k]?.off); }
 function runForecast(lv = {}, opt = {}) {
   const cutoff = opt.cutoff || todayISO(), years = opt.years || 25, daysDetail = opt.daysDetail ?? 366, useSched = opt.useSched !== false;
   const A = fcA(), am = accMap(); const CURS = usedCurs();
   const start = opt.cutoff ? balAt(cutoff) : balances();
   const B = baseline(cutoff);
-  const sch = useSched ? D().sched.filter(s => !s.off && s.next) : [];
-  const schedEq = new Map(); const FM = opt.mode || fcA().mode || "mix", OV = FM === "custom" ? fcA().cats || {} : {};
+  const FM = opt.mode || fcA().mode || "mix", OV = FM === "custom" ? fcA().cats || {} : {};
+  const sch = useSched ? D().sched.filter(s => !s.off && s.next && !fcSchedOff(s, OV, am)) : [];
+  const schedEq = new Map(); const BP = new Map(B); for (const [k, o] of Object.entries(OV)) if (o && o.add && !BP.has(k)) { const [cu, kd, ct] = k.split("|"); BP.set(k, { cur: cu, kind: kd, cat: +ct, tot: 0, avg: 0, mo: new Array(12).fill(0) }); }
   for (const s of sch) { if (s.t === "tr") continue; const a = am.get(s.a); if (!a || (!D().settings.invFlows && kindOf(a) === "investment")) continue; const c = s.c?.[0]?.[0]; if (c && isInterest(c)) continue;
     const kind = c ? catMap().get(c)?.type || (s.v < 0 ? "exp" : "inc") : (s.v < 0 ? "exp" : "inc"); const key = a.cur + "|" + kind + "|" + (c ? topCat(c)?.id : 0); schedEq.set(key, (schedEq.get(key) || 0) + schedEqD(s)); }
   const liq = {}, inv = new Map(), other = new Map(); const loans = []; for (const c of CURS) liq[c] = 0;
@@ -2486,7 +2492,7 @@ function runForecast(lv = {}, opt = {}) {
   let md = DET ? newMd() : null; if (md) md.open = liqNow(); const addSd = (key, name, v) => { const o = md.sd[key] ||= {}; o[name] = (o[name] || 0) + v; };
   const planMonth = (ym, i) => { const mo = +ym.slice(5, 7) - 1, dim = new Date(+ym.slice(0, 4), mo + 1, 0).getDate(), yrs = i / 365; const plan = {}, cats = [];
     const ret = RT && ym >= RT.date.slice(0, 7);
-    for (const [key, e] of B) { if (ret && (e.kind === "exp" || !RT.keep(e.cat))) continue; if (FM === "sched") continue; const ov = OV[key]; if (ov?.off) continue; let v = ov && ov.amt != null ? +ov.amt : (0.6 * e.avg + 0.4 * e.mo[mo]); v = Math.max(0, v - (schedEq.get(key) || 0));
+    for (const [key, e] of BP) { if (ret && (e.kind === "exp" || !RT.keep(e.cat))) continue; if (FM === "sched") continue; const ov = OV[key]; if (ov?.off) continue; let v = ov && ov.amt != null ? +ov.amt : (0.6 * e.avg + 0.4 * e.mo[mo]); v = Math.max(0, v - (schedEq.get(key) || 0));
       if (e.kind === "exp") { v *= Math.pow(1 + A.infl / 100, yrs) * (1 + (lv.spend || 0) / 100); plan[e.cur] = (plan[e.cur] || 0) - v; if (DET) cats.push(["exp", e.cat, e.cur, v / dim]); if (i < 366) catOut.set(e.cat, (catOut.get(e.cat) || 0) + toA(v, e.cur)); }
       else { v *= (1 + (lv.income || 0) / 100) * Math.pow(1 + (A.incg ?? 3) / 100, yrs); plan[e.cur] = (plan[e.cur] || 0) + v; if (DET) cats.push(["inc", e.cat, e.cur, v / dim]); } }
     if (ret) { const v = RT.needM * Math.pow(1 + RT.infl, yrs); plan[RT.PC] = (plan[RT.PC] || 0) - v; if (DET) cats.push(["exp", "ret", RT.PC, v / dim]); }
@@ -3474,12 +3480,12 @@ function vFcTable(v) {
   R("open", "Opening cash", "subtot", "first", d => d.open, o => o.open);
   rows.push({ sec: "Income" });
   const incK = keysOf("inc").sort((x, y) => A.ms.reduce((s, m) => s + (m.det.inc[y] || 0) - (m.det.inc[x] || 0), 0));
-  for (const k of incK) R("inc:" + k, catLab(k, "inc"), "", "sum", d => d.inc[k] || 0, o => o.inc[k] || 0, { drill: ["inc", k] });
+  for (const k of incK) R("inc:" + k, catLab(k, "inc") + fcMark("inc", k), "", "sum", d => d.inc[k] || 0, o => o.inc[k] || 0, { drill: ["inc", k] });
   if (A.ms.some(m => m.det.lost) || Bd?.ms.some(m => m.det.lost)) R("lost", "Income lost in this scenario", "", "sum", d => -d.lost, () => 0);
   R("tinc", "Total income", "subtot", "sum", d => F.inc(d) - d.lost, o => AF.inc(o));
   rows.push({ sec: "Spending" });
   const expK = keysOf("exp").sort((x, y) => A.ms.reduce((s, m) => s + (m.det.exp[y] || 0) - (m.det.exp[x] || 0), 0));
-  for (const k of expK) R("exp:" + k, catLab(k, "exp"), "", "sum", d => d.exp[k] || 0, o => o.exp[k] || 0, { drill: ["exp", k] });
+  for (const k of expK) R("exp:" + k, catLab(k, "exp") + fcMark("exp", k), "", "sum", d => d.exp[k] || 0, o => o.exp[k] || 0, { drill: ["exp", k] });
   R("texp", "Total spending", "subtot", "sum", d => F.exp(d), o => AF.exp(o));
   if (loanIds.length) { rows.push({ sec: "Loans" });
     for (const id of loanIds) { const a = accMap().get(+id); const W = a ? loanWord(loanCfg(a), true) : "Interest";
@@ -3531,7 +3537,7 @@ function vFcTable(v) {
         ${mode !== "none" ? `<tr>${bk.concat([allB]).map(() => subs.map((s, i) => `<th class="r sub ${i === 2 ? "dlt" : ""}">${esc(s.length > 12 ? s.slice(0, 11) + "…" : s)}</th>`).join("")).join("")}</tr>` : ""}</thead><tbody>
         ${rows.map((r, ri) => r.sec ? `<tr class="sec"><th class="rl" colspan="${1 + (bk.length + 1) * subs.length}">${esc(r.sec)}</th></tr>` : `<tr class="${r.cls}"><th class="rl" title="${esc(r.label)}">${esc(r.label)}</th>${grid[ri].map((c, bi) => c.map((x, si) => { const isT = bi === bk.length; const show = !(isT && (r.agg === "first" || r.agg === "last") && false); const dcls = si === 2 ? `dlt ${x == null ? "" : (["exp:", "texp", "tloan", "loan:", "inv", "pp"].some(p => r.key.startsWith(p)) ? (x > .5 ? "neg" : x < -.5 ? "pos" : "") : (x > .5 ? "pos" : x < -.5 ? "neg" : ""))}` : ""; return `<td class="r money ${dcls} ${isT ? "tot" : ""} ${r.drill && x != null && si < 2 ? "dc" : ""}" ${r.drill && si < 2 ? `data-r="${ri}" data-b="${bi}" data-s="${si}"` : ""}>${show ? esc(fmC(x, r)) : ""}</td>`; }).join("")).join("")}</tr>`).join("")}
         </tbody></table></div>
-        <p class="muted" style="font-size:.78rem;margin:.75rem 0 0">Amounts in ${B}${liqCurs().length > 1 ? ", except the cash rows for each currency" : ""}. Spending is shown as positive amounts. ${mode === "act" ? "Diff is actual minus forecast; green is better than forecast. Actuals count only bank, cash and card accounts. " : mode === "sc" ? `Diff is ${esc(scB.name)} minus ${esc(scA.name)}. ` : ""}Tap a figure to see what makes it up.${bk.some(b => b.ms.includes(cur)) ? " · marks the current month, which is only partly over." : ""}</p></div>
+        <p class="muted" style="font-size:.78rem;margin:.75rem 0 0">Amounts in ${B}${liqCurs().length > 1 ? ", except the cash rows for each currency" : ""}. Spending is shown as positive amounts. Cash means bank and cash accounts minus what you owe on cards. ${mode === "act" ? "Diff is actual minus forecast; green is better than forecast. Actuals count only bank, cash and card accounts. " : mode === "sc" ? `Diff is ${esc(scB.name)} minus ${esc(scA.name)}. ` : ""}Tap a figure to see what makes it up.${fcA().mode === "custom" ? " ✎ marks lines you changed in My categories." : ""}${bk.some(b => b.ms.includes(cur)) ? " · marks the current month, which is only partly over." : ""}</p></div>
     </section>`;
   wireTop(); wireFcTabs(v); wireFcMode(v);
   const set = (k, x) => { T[k] = x; renderApp(); };
@@ -4469,7 +4475,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-07 · cf3d0d"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-07 · 4daf08"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -5372,14 +5378,14 @@ function schedConfirm(title, msg, okLabel, fn) {
     (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); $("#cfOk", m).onclick = () => { close(); fn(); }; });
 }
 function vUpcoming(v) {
-  const now = todayISO(), P = S2.pu ||= { view: "list", month: now.slice(0, 7) }; if (!P.sel) P.sel = new Set(); const B = base(); const items = upcomingItems(120);
+  const now = todayISO(), P = S2.pu ||= { view: "list", month: now.slice(0, 7) }; if (!P.sel) P.sel = new Set(); const B = base(); const items0 = upcomingItems(120), hid = P.cf instanceof Set ? P.cf : (P.cf = new Set()), items = hid.size ? items0.filter(x => !hid.has(upCatKey(x))) : items0;
   const wk = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return isoLocal(d); })(), mEnd = monthEnd(now.slice(0, 7)), nEnd = monthEnd(addMonths(now, 1).slice(0, 7));
   const buckets = [["Overdue", x => x.d < now], ["Today", x => x.d === now], ["Next 7 days", x => x.d > now && x.d <= wk], ["Later this month", x => x.d > wk && x.d <= mEnd], ["Next month", x => x.d > mEnd && x.d <= nEnd], ["Later", x => x.d > nEnd]];
   const n90 = addMonths(now, 3), need = {}, inc90 = {}, am = accMap();
   for (const x of items) { if (x.d > n90) continue; const cur = am.get(x.a)?.cur || B;
     if (x.kind === "sched" && x.s.t === "tr") { const b = x.s.to ? am.get(x.s.to) : null; if (b && LIQ.has(kindOf(b))) continue; need[cur] = (need[cur] || 0) + Math.abs(x.v); continue; }
     if (x.v < 0) need[cur] = (need[cur] || 0) - x.v; else if (x.v > 0) inc90[cur] = (inc90[cur] || 0) + x.v; }
-  const all = D().sched.slice().sort((x, y) => (x.next || "9999").localeCompare(y.next || "9999") || schedName(x).localeCompare(schedName(y)));
+  const all = D().sched.filter(s => !hid.size || !hid.has(upSKey(s))).sort((x, y) => (x.next || "9999").localeCompare(y.next || "9999") || schedName(x).localeCompare(schedName(y)));
   const act = all.filter(s => schedState(s) === "active"), pau = all.filter(s => schedState(s) === "paused"), fin = all.filter(s => schedState(s) === "done");
   const mo = { out: 0, in: 0 }; for (const s of act) { if (s.t === "tr") continue; const a = am.get(s.a); const q = toBase(schedMonthlyEquiv(s), a?.cur); if (s.v < 0) mo.out += q; else mo.in += q; }
   const fxHint = s => s.oc && s.oa ? ` · ${money(s.oa, s.oc)}` : "";
@@ -5393,12 +5399,12 @@ function vUpcoming(v) {
   const flow = schedFlow(12), fm = [...flow.entries()], hasFlow = fm.some(([, r]) => r.in || r.out || r.sv);
   const manage = () => `<div class="sbar"><label class="tgl"><input type="checkbox" id="selAll" ${all.length && all.every(s => P.sel.has(s.id)) ? "checked" : ""}> Select all</label><span class="faint" id="selN">${P.sel.size ? P.sel.size + " selected" : ""}</span><span class="row-btns"><button class="btn sm" id="bPz" ${P.sel.size ? "" : "disabled"}>Pause</button><button class="btn sm" id="bRs" ${P.sel.size ? "" : "disabled"}>Resume</button><button class="btn sm danger" id="bDel" ${P.sel.size ? "" : "disabled"}>Delete selected</button></span></div>
     ${[["Active", act], ["Paused", pau], ["Finished", fin]].map(([t, l]) => l.length ? `<h3 class="bhead">${t} <span class="faint">${l.length}</span></h3><div class="list">${l.map(mrow).join("")}</div>` : "").join("") || `<div class="empty">No scheduled items yet. Tap “New scheduled item” to add one.</div>`}`;
-  v.innerHTML = `${topbar("Upcoming", "Scheduled payments, income, transfers and card dues", `${all.length ? `<button class="btn danger" id="clrS">Clear all</button>` : ""}<button class="btn primary" id="newS">${icon("plus")}New scheduled item</button>`)}
+  v.innerHTML = `${topbar("Upcoming", "Scheduled payments, income, transfers and card dues", `${all.length && !hid.size ? `<button class="btn danger" id="clrS">Clear all</button>` : ""}<button class="btn primary" id="newS">${icon("plus")}New scheduled item</button>`)}
     <section class="grid">
       <div class="card span-12"><div class="card-h"><h2>Next 90 days</h2><span class="note">Before any spending not scheduled</span></div><div class="cash90">${Object.keys({ ...need, ...inc90 }).sort().map(c => { const hold = D().accounts.filter(a => a.cur === c && ["bank", "cash"].includes(kindOf(a))).reduce((s, a) => s + Math.max(0, bal(a.id)), 0);
         return `<div class="hm-item"><div class="hm-top"><span>${esc(ctryName(countryForCur(c)))} (${c})</span></div><div class="kv"><span>Going out</span><b class="money neg">${esc(money(need[c] || 0, c, { dec: false }))}</b><span>Coming in</span><b class="money pos">${esc(money(inc90[c] || 0, c, { dec: false }))}</b><span>Cash and bank now</span><b class="money">${esc(money(hold, c, { dec: false }))}</b></div></div>`; }).join("") || `<div class="muted">Nothing scheduled in the next 90 days.</div>`}</div></div>
-      <div class="card span-12"><div class="card-h"><h2>${P.view === "all" ? "All scheduled items" : "Coming up"}</h2><div class="seg" role="group">${[["list", "List"], ["cal", "Calendar"], ["all", `All items (${all.length})`]].map(([k, l]) => `<button data-uv="${k}" aria-pressed="${P.view === k}">${l}</button>`).join("")}</div></div>
-        ${P.view === "all" ? `<p class="muted" style="margin:0 0 .6rem;font-size:.85rem">${act.length} active · ${pau.length} paused · ${fin.length} finished. Repeating items cost about <b class="money neg">${esc(compact(mo.out, B))}</b> out and <b class="money pos">${esc(compact(mo.in, B))}</b> in per month.</p>${manage()}`
+      <div class="card span-12"><div class="card-h"><h2>${P.view === "all" ? "All scheduled items" : "Coming up"}</h2><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center"><button class="btn sm ${hid.size ? "primary" : ""}" id="ucf">${icon("list")}Categories${hid.size ? ` · filtered` : ""}</button><div class="seg" role="group">${[["list", "List"], ["cal", "Calendar"], ["all", `All items (${all.length})`]].map(([k, l]) => `<button data-uv="${k}" aria-pressed="${P.view === k}">${l}</button>`).join("")}</div></div></div>
+        ${hid.size ? `<p class="muted" style="margin:0 0 .6rem;font-size:.85rem">Showing only some categories (${hid.size} hidden). <a class="slink" id="ucfClr" role="button" tabindex="0">Show all</a></p>` : ""}${P.view === "all" ? `<p class="muted" style="margin:0 0 .6rem;font-size:.85rem">${act.length} active · ${pau.length} paused · ${fin.length} finished. Repeating items cost about <b class="money neg">${esc(compact(mo.out, B))}</b> out and <b class="money pos">${esc(compact(mo.in, B))}</b> in per month.</p>${manage()}`
           : P.view === "list" ? buckets.map(([t, f]) => { const l = items.filter(x => x.first).filter(f); return l.length ? `<h3 class="bhead">${t} <span class="faint">${l.length}</span></h3><div class="list">${l.map(row).join("")}</div>` : ""; }).join("") || `<div class="empty">Nothing scheduled. Tap “New scheduled item” to add rent, EMIs, salary, school fees or a transfer.</div>` : calHTML(items, P.month)}</div>
       ${hasFlow ? `<div class="card span-12"><div class="card-h"><h2>Scheduled cash flow, next 12 months</h2><span class="note">In ${B}. Transfers between your own accounts are not counted as spending.</span></div><div class="tbl"><table class="btab"><thead><tr><th>Month</th><th class="r">Coming in</th><th class="r">Going out</th><th class="r">Net</th><th class="r hide-sm">Moved to savings / investments</th></tr></thead><tbody>${fm.map(([ym, r]) => `<tr><td>${esc(fmtMonth(ym))}</td><td class="r money pos">${esc(compact(r.in, B))}</td><td class="r money neg">${esc(compact(r.out, B))}</td><td class="r money ${cls(r.in - r.out)}">${esc(compact(r.in - r.out, B))}</td><td class="r money hide-sm">${r.sv ? esc(compact(r.sv, B)) : "–"}</td></tr>`).join("")}</tbody></table></div></div>` : ""}
     </section>`;
@@ -5422,6 +5428,7 @@ function vUpcoming(v) {
   if ($("#bDel", v)) $("#bDel", v).onclick = () => { const l = picked(); schedConfirm(`Delete ${l.length} scheduled item${l.length === 1 ? "" : "s"}?`, "They and all their future dates will be removed. Entries you already recorded stay.", "Delete", () => { schedDelete(l.map(s => s.id)); P.sel = new Set(); rr(); toast("Deleted"); }); };
   if ($("#clrS", v)) $("#clrS", v).onclick = () => schedConfirm(`Delete all ${all.length} scheduled items?`, "Every scheduled payment, income and transfer will be removed, so you can start again. Card due dates come from the Cards page and are not affected. Entries you already recorded stay. This can’t be undone.", "Delete all", () => { schedDelete(all.map(s => s.id)); P.sel = new Set(); rr(); toast("All scheduled items deleted"); });
   $("#newS").onclick = () => schedEditor(null);
+  $("#ucf", v).onclick = () => upCatDlg(items0, P); if ($("#ucfClr", v)) $("#ucfClr", v).onclick = () => { P.cf = new Set(); rr(); };
 }
 
 /* ---------- editor ---------- */
@@ -5777,7 +5784,10 @@ function catMerge() {
   const d = S.data; S.catUndo = JSON.stringify(d); const groups = catDupes(), M = new Map(); let removed = 0;
   for (const g of groups) for (const dr of g.drop) { M.set(dr.id, g.keep.id);
     for (const s of d.cats.filter(c => c.parent === dr.id)) { const k = d.cats.find(c => c.parent === g.keep.id && catNorm(c.name) === catNorm(s.name)); if (k) M.set(s.id, k.id); else { s.parent = g.keep.id; stamp(s); } } }
-  if (!M.size) return 0; const mp = id => M.has(id) ? M.get(id) : id;
+  if (!M.size) return 0; return catRemap(M);
+}
+function catRemap(M) {
+  const d = S.data; let removed = 0; const mp = id => M.has(id) ? M.get(id) : id;
   const fixPairs = arr => { if (!arr || !arr.length) return arr; const out = []; for (const p of arr) { const n = mp(p[0]), ex = out.find(x => x[0] === n && x.length === 2 && p.length === 2); if (ex) ex[1] = Math.round((ex[1] + p[1]) * 100) / 100; else out.push([n, ...p.slice(1)]); } return out; };
   const touches = arr => (arr || []).some(p => M.has(p[0]));
   for (const t of d.tx) if (touches(t.c)) { t.c = fixPairs(t.c); stamp(t); }
@@ -5812,6 +5822,175 @@ function tidyCard() {
 function wireTidy() {
   if ($("#tidyGo")) $("#tidyGo").onclick = catTidyDlg;
   if ($("#tidyUndo")) $("#tidyUndo").onclick = () => { try { S.data = JSON.parse(S.catUndo); S.catUndo = null; changed(); renderApp(); toast("Merge undone"); } catch (e) { toast("Couldn't undo."); } };
+}
+
+/* ================= Phase 8: categories page, forecast "My categories" editor, Upcoming category filter ================= */
+function catAmt12() { const end = todayISO(), from = addMonths(end.slice(0, 8) + "01", -11), m = new Map(); eachFlow(from, end, (k, c, val) => { if (c && (k === "exp" || k === "inc")) m.set(c, (m.get(c) || 0) + val); }); return m; }
+function catCounts() { const m = new Map(), d = S.data; const bump = (id, k) => { if (!id) return; const o = m.get(id) || { tx: 0, sc: 0, bu: 0, ot: 0 }; o[k]++; m.set(id, o); };
+  for (const t of d.tx) for (const p of t.c || []) bump(p[0], "tx"); for (const s of d.sched || []) for (const p of s.c || []) bump(p[0], "sc");
+  for (const b of d.budgets || []) { for (const id of (b.cats && b.cats.length ? b.cats : [b.cat])) bump(id, "bu"); }
+  for (const a of d.accounts) if (a.loan?.cat) bump(a.loan.cat, "ot"); for (const p of d.properties || []) bump(p.cat, "ot"); for (const r of d.rules || []) bump(r.cat, "ot"); for (const p of d.payees || []) bump(p.cat, "ot");
+  return m; }
+const catKids = id => D().cats.filter(c => c.parent === id);
+function catEditor(c, o = {}) {
+  const isNew = !c, d = S.data, kids = c ? catKids(c.id) : []; const type = c ? c.type : o.type || "exp";
+  const tops = d.cats.filter(x => x.type === type && (!x.parent || !catMap().get(x.parent)) && (!c || x.id !== c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const cur = c ? (c.parent && catMap().get(c.parent) ? c.parent : 0) : (o.parent || 0);
+  modal(`<div class="m-head"><h2>${isNew ? (o.parent ? "New subcategory" : "New category") : "Edit category"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <form class="form" id="cf" novalidate>
+      ${isNew ? `<div class="seg full" role="group" aria-label="Type">${[["exp", "Spending"], ["inc", "Income"]].map(([k, l]) => `<button type="button" data-ct="${k}" aria-pressed="${k === type}">${l}</button>`).join("")}</div>` : `<div class="muted full" style="font-size:.85rem">${type === "inc" ? "Income" : "Spending"} category</div>`}
+      <label class="full">Name<input type="text" id="cn" value="${esc(c?.name || "")}" placeholder="e.g. Groceries, Car service, Freelance"></label>
+      <label class="full">Sits under<select id="cp" ${kids.length ? "disabled" : ""}><option value="0">Nothing: a main category</option>${tops.map(t => `<option value="${t.id}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+      ${kids.length ? `<p class="muted full" style="font-size:.8rem;margin:0">This category has ${kids.length} subcategor${kids.length === 1 ? "y" : "ies"}, so it stays a main category. Move or merge those first to place it under another.</p>` : ""}
+      <p class="err full" id="cErr" style="display:none"></p></form>
+    <div class="m-foot"><div>${isNew ? "" : `<button class="btn ghost" id="cMerge">Merge into…</button> <button class="btn ghost danger" id="cDel">Delete…</button>`}</div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="cSv">${isNew ? "Add" : "Save"}</button></div></div>`,
+  (m, close) => { let ty = type; m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+    m.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => { ty = b.dataset.ct; m.querySelectorAll("[data-ct]").forEach(x => x.setAttribute("aria-pressed", x === b)); const sel = $("#cp", m); sel.innerHTML = `<option value="0">Nothing: a main category</option>` + d.cats.filter(x => x.type === ty && (!x.parent || !catMap().get(x.parent))).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""); });
+    if ($("#cMerge", m)) $("#cMerge", m).onclick = () => { close(); catMoveDlg(c, "merge"); }; if ($("#cDel", m)) $("#cDel", m).onclick = () => { close(); catMoveDlg(c, "delete"); };
+    const err = t => { const e = $("#cErr", m); e.textContent = t; e.style.display = t ? "" : "none"; };
+    $("#cSv", m).onclick = () => { const name = $("#cn", m).value.trim().replace(/\s+/g, " "), par = +$("#cp", m).value || 0; if (!name) return err("Give the category a name.");
+      const sib = d.cats.find(x => x.id !== c?.id && x.type === (par ? catMap().get(par).type : ty) && (x.parent || 0) === par && catNorm(x.name) === catNorm(name)); if (sib) return err(`There is already a ${par ? "subcategory" : "category"} called “${sib.name}” here. Pick another name, or merge them.`);
+      if (isNew) { const n = { id: d.nextId++, name, parent: par || null, type: par ? catMap().get(par).type : ty, order: Math.max(0, ...d.cats.map(x => x.order || 0)) + 1 }; stamp(n); d.cats.push(n); if (par) (S2.pc ||= { type: "exp", open: new Set() }).open.add(par); }
+      else { c.name = name; if (!kids.length) { c.parent = par || null; if (par) c.type = catMap().get(par).type; } stamp(c); }
+      changed(); close(); renderApp(); toast(isNew ? "Category added" : "Saved"); }; });
+}
+function catMoveDlg(c, mode) {
+  const d = S.data, cn = catCounts(), kids = catKids(c.id), ids = [c.id, ...kids.map(k => k.id)];
+  const sum = ids.reduce((o, id) => { const x = cn.get(id); if (x) for (const k in x) o[k] += x[k]; return o; }, { tx: 0, sc: 0, bu: 0, ot: 0 }); const used = sum.tx + sum.sc + sum.bu + sum.ot > 0;
+  const tops = d.cats.filter(x => x.type === c.type && (!x.parent || !catMap().get(x.parent)) && !ids.includes(x.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const opts = tops.map(t => `<option value="${t.id}">${esc(t.name)}</option>` + catKids(t.id).filter(k => !ids.includes(k.id)).sort((a, b) => a.name.localeCompare(b.name)).map(k => `<option value="${k.id}">${esc(t.name)} › ${esc(k.name)}</option>`).join("")).join("");
+  const del = mode === "delete", need = used || mode === "merge";
+  modal(`<div class="m-head"><h2>${del ? "Delete" : "Merge"} “${esc(c.name)}”</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <p class="muted" style="margin:0 0 .6rem">${need ? `${sum.tx} entr${sum.tx === 1 ? "y" : "ies"}${sum.sc ? `, ${sum.sc} scheduled item${sum.sc === 1 ? "" : "s"}` : ""}${sum.bu ? `, ${sum.bu} budget limit${sum.bu === 1 ? "" : "s"}` : ""} use this${kids.length ? ` and its ${kids.length} subcategor${kids.length === 1 ? "y" : "ies"}` : ""}. Choose where they go${del ? " before it is deleted" : ""}. Nothing is lost: budgets, reports and forecast settings follow.` : `Nothing uses this category${kids.length ? ", but it has empty subcategories that are removed with it" : ""}. It will simply be removed.`}</p>
+    ${need ? `<label class="full" style="display:block">Move everything to<select id="cT" style="width:100%"><option value="">Choose a category…</option>${opts}</select></label>` : ""}
+    ${kids.length && need ? `<p class="muted" style="font-size:.8rem;margin:.5rem 0 0">Subcategories move across too. If the destination is a main category they are kept as its subcategories.</p>` : ""}
+    <p class="err" id="cErr" style="display:none"></p><p class="muted" style="font-size:.8rem;margin:.6rem 0 0">You can undo this from the Categories page until you close the app.</p>
+    <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn ${del ? "danger" : "primary"}" id="cGo">${del ? "Delete" : "Merge"}</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+    $("#cGo", m).onclick = () => { const t = need ? +$("#cT", m).value : 0; if (need && !t) { const e = $("#cErr", m); e.textContent = "Choose where to move them."; e.style.display = ""; return; }
+      S.catUndo = JSON.stringify(d); const M = new Map([[c.id, t]]);
+      if (t) { const tg = catMap().get(t); for (const k of kids) { if (!tg.parent && !d.cats.some(x => x.parent === tg.id && catNorm(x.name) === catNorm(k.name))) { k.parent = tg.id; stamp(k); } else M.set(k.id, tg.parent ? tg.id : d.cats.find(x => x.parent === tg.id && catNorm(x.name) === catNorm(k.name))?.id || tg.id); } }
+      else for (const k of kids) M.set(k.id, 0);
+      if (!t) { d.cats = d.cats.filter(x => { if (x.id === c.id || kids.some(k => k.id === x.id)) { tombF("cat", x.id); return false; } return true; }); changed(); }
+      else catRemap(M);
+      close(); renderApp(); toast(del ? "Deleted" : "Merged"); }; });
+}
+function vCats(v) {
+  const P = S2.pc ||= { type: "exp", q: "", open: new Set() }; if (!(P.open instanceof Set)) P.open = new Set(); const d = S.data, B = base(), cm = catMap();
+  const am = catAmt12(), cn = catCounts(), dup = catDupes().reduce((s, g) => s + g.drop.length, 0), q = P.q.trim().toLowerCase();
+  const roots = d.cats.filter(c => c.type === P.type && (!c.parent || !cm.get(c.parent)));
+  const kidsOf = r => d.cats.filter(c => c.parent === r.id).sort((a, b) => (am.get(b.id) || 0) - (am.get(a.id) || 0) || a.name.localeCompare(b.name));
+  const tot = r => (am.get(r.id) || 0) + kidsOf(r).reduce((s, k) => s + (am.get(k.id) || 0), 0), cnt = r => [r, ...kidsOf(r)].reduce((s, x) => s + (cn.get(x.id)?.tx || 0), 0);
+  let list = roots.filter(r => !q || r.name.toLowerCase().includes(q) || kidsOf(r).some(k => k.name.toLowerCase().includes(q))).sort((a, b) => tot(b) - tot(a) || a.name.localeCompare(b.name));
+  const meta = (c, t, n) => `${n} entr${n === 1 ? "y" : "ies"}${t > 0 ? ` · ${compact(t, B)} in the last 12 months` : ""}`;
+  const row = (c, sub) => { const kids = sub ? [] : kidsOf(c), open = P.open.has(c.id) || (q && kids.some(k => k.name.toLowerCase().includes(q))), t = sub ? am.get(c.id) || 0 : tot(c), n = sub ? cn.get(c.id)?.tx || 0 : cnt(c);
+    return `<div class="row crow ${sub ? "csub" : ""}" style="${sub ? "padding-left:2rem" : ""}">${sub ? "" : `<button class="ibtn" data-co="${c.id}" aria-label="${open ? "Collapse" : "Expand"}" style="visibility:${kids.length ? "visible" : "hidden"}">${open ? "▾" : "▸"}</button>`}
+      <div class="r-main"><div class="r-t">${esc(c.name)}${!sub && kids.length ? ` <span class="faint">${kids.length} sub</span>` : ""}</div><div class="r-s">${esc(meta(c, t, n))}</div></div>
+      <div class="r-amt"><span class="row-btns">${sub ? "" : `<button class="btn sm" data-cs="${c.id}">+ Sub</button>`}<button class="btn sm" data-ce="${c.id}">Edit</button></span></div></div>${!sub && open ? kids.filter(k => !q || r0(c, k)).map(k => row(k, true)).join("") : ""}`; };
+  const r0 = (p, k) => p.name.toLowerCase().includes(q) || k.name.toLowerCase().includes(q);
+  v.innerHTML = `${topbar("Categories", "Add, rename, move, merge and delete the categories used everywhere: entries, budgets, forecast and reports", `${S.catUndo ? `<button class="btn" id="cUndo">Undo last change</button>` : ""}${dup ? `<button class="btn" id="cDup">Merge ${dup} duplicate${dup === 1 ? "" : "s"}</button>` : ""}<button class="btn primary" id="cNew">${icon("plus", 2.2)}New category</button>`)}
+    <section class="grid"><div class="card span-12"><div class="card-h"><div class="seg" role="group" aria-label="Type">${[["exp", "Spending"], ["inc", "Income"]].map(([k, l]) => `<button data-cty="${k}" aria-pressed="${P.type === k}">${l} <span class="faint">${d.cats.filter(c => c.type === k && (!c.parent || !cm.get(c.parent))).length}</span></button>`).join("")}</div>
+      <input type="search" id="cQ" value="${esc(P.q)}" placeholder="Find a category" aria-label="Find a category" style="max-width:16rem"></div>
+      <div class="list">${list.map(r => row(r, false)).join("") || `<div class="empty">${q ? "No category matches." : "No categories yet."}</div>`}</div>
+      <p class="muted" style="font-size:.8rem;margin:.7rem 0 0">Amounts are the last 12 months in ${B}. Open a category with ▸ to see its subcategories. Merging or deleting moves every entry, scheduled item, budget limit and forecast setting to the category you choose.</p></div></section>`;
+  wireTop(); const rr = () => renderApp(), byId = id => d.cats.find(c => c.id === +id);
+  v.querySelectorAll("[data-cty]").forEach(b => b.onclick = () => { P.type = b.dataset.cty; rr(); });
+  v.querySelectorAll("[data-co]").forEach(b => b.onclick = () => { const id = +b.dataset.co; P.open.has(id) ? P.open.delete(id) : P.open.add(id); rr(); });
+  v.querySelectorAll("[data-ce]").forEach(b => b.onclick = () => catEditor(byId(b.dataset.ce)));
+  v.querySelectorAll("[data-cs]").forEach(b => b.onclick = () => { const p = byId(b.dataset.cs); catEditor(null, { type: p.type, parent: p.id }); });
+  $("#cNew", v).onclick = () => catEditor(null, { type: P.type });
+  if ($("#cDup", v)) $("#cDup", v).onclick = catTidyDlg;
+  if ($("#cUndo", v)) $("#cUndo", v).onclick = () => { try { S.data = JSON.parse(S.catUndo); S.catUndo = null; changed(); renderApp(); toast("Undone"); } catch (e) { toast("Couldn't undo."); } };
+  const qi = $("#cQ", v); qi.oninput = () => { P.q = qi.value; const pos = qi.selectionStart; rr(); const n = $("#cQ"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+}
+
+/* ---------- forecast: choose what the forecast uses ---------- */
+function fcChanges() { const cs = fcA().cats || {}; let n = 0; const names = [];
+  const nm = k => { const [cu, kd, ct] = k.split("|"); return (+ct ? catMap().get(+ct)?.name : kd === "inc" ? "Other income" : "Uncategorized") || "Category"; };
+  for (const [k, o] of Object.entries(cs)) { if (!o) continue; if (k.startsWith("s:")) { const s = D().sched.find(x => x.id === +k.slice(2)); if (o.off && s) { n++; names.push((s.ds || payName(s.p) || "Scheduled item") + " left out"); } }
+    else if (k.startsWith("__")) { if (o.off) { n++; names.push((k === "__xout" ? "Investing transfers" : "Currency transfers") + " left out"); } }
+    else if (o.off) { n++; names.push(nm(k) + " left out"); } else if (o.add) { n++; names.push(nm(k) + " added at " + (+o.amt || 0).toLocaleString()); } else if (o.amt != null) { n++; names.push(nm(k) + " at " + (+o.amt).toLocaleString()); } }
+  return { n, names }; }
+function fcMark(kind, id) { if (fcA().mode !== "custom") return ""; const cs = fcA().cats || {}, am = accMap();
+  for (const [k, o] of Object.entries(cs)) { if (!o) continue; if (k.startsWith("__")) continue;
+    if (k.startsWith("s:")) { const s = D().sched.find(x => x.id === +k.slice(2)); if (s && o.off && fcSchedKey(s, am)?.split("|").slice(1).join("|") === kind + "|" + id) return " ✎"; continue; }
+    const p = k.split("|"); if (p[1] === kind && p[2] === String(id) && (o.amt != null || o.add)) return " ✎"; } return ""; }
+function fcModeBar() { const M = fcA().mode || "mix"; const ch = fcChanges();
+  return `<div class="card fmode"><div class="fm-l"><span class="muted" style="font-size:.78rem;font-weight:700">Forecast based on</span><div class="seg" role="group" aria-label="Forecast based on">${FC_MODES.map(([k, l]) => `<button data-fm="${k}" aria-pressed="${M === k}">${l}</button>`).join("")}</div></div>
+    <span class="muted fm-d">${esc(FC_MODES.find(x => x[0] === M)[2])}${M === "custom" ? ` · ${ch.n ? ch.n + " change" + (ch.n === 1 ? "" : "s") + ": " + esc(ch.names.slice(0, 3).join(", ")) + (ch.n > 3 ? ` +${ch.n - 3} more` : "") : "no changes yet"}` : ""}</span><button class="btn sm ${M === "custom" ? "primary" : ""}" id="fmEdit">${icon("settings")}Choose categories</button></div>`; }
+function fcCatsEditor() {
+  const A = fcA(), cs = JSON.parse(JSON.stringify(A.cats || {})), Bm = baseline(todayISO()), am = accMap(), B = base(), CU = usedCurs();
+  const XB = xferBaseline(todayISO(), new Set(D().accounts.filter(a => kindOf(a) === "loan" && loanCfg(a) && loanModelCfg(loanCfg(a), Math.max(0, -bal(a.id)), todayISO()).models).map(a => a.id)));
+  const live = D().sched.filter(s => !s.off && s.next && am.get(s.a));
+  const sch = live.filter(s => s.t !== "tr" && (D().settings.invFlows || kindOf(am.get(s.a)) !== "investment") && !(s.c?.[0]?.[0] && isInterest(s.c[0][0])));
+  const trs = live.filter(s => s.t === "tr");
+  const by = new Map(); for (const s of sch) { const k = fcSchedKey(s, am); if (!by.has(k)) by.set(k, []); by.get(k).push(s); }
+  const nameOf = (kind, ct) => ct ? catMap().get(ct)?.name || "Category" : kind === "inc" ? "Other income" : "Uncategorized";
+  const keyList = () => { const ks = new Set([...Bm.entries()].filter(([, e]) => e.avg > .5).map(([k]) => k)); for (const k of by.keys()) ks.add(k); for (const k in cs) if (cs[k]?.add) ks.add(k);
+    return [...ks].map(k => { const [cu, kind, ct] = k.split("|"); const e = Bm.get(k); return { key: k, cur: cu, kind, cat: +ct, avg: e?.avg || 0, items: by.get(k) || [], name: nameOf(kind, +ct) }; }); };
+  const money0 = (v, c) => money(v, c, { dec: false });
+  const itemRow = s => { const on = !cs["s:" + s.id]?.off; const a = am.get(s.a); const to = s.t === "tr" && s.to ? " → " + accName(s.to) : "";
+    return `<div class="fcr fcs ${on ? "" : "off"}" data-k="s:${s.id}"><label class="tgl"><input type="checkbox" class="fcsk" ${on ? "checked" : ""}></label><div class="fcn"><b>${esc(s.ds || payName(s.p) || "Scheduled item")}</b><span class="faint">${esc(schedWhen(s))}${esc(to)} · ${esc(a?.name || "")}</span></div><span class="money ${s.t === "tr" ? "" : cls(s.v)}" style="text-align:right;font-size:.85rem">${esc(money0(s.v, a?.cur || B))}</span></div>`; };
+  const catRow = r => { const o = cs[r.key] || {}, off = !!o.off; return `<div class="fcg" data-g="${esc(r.key)}"><div class="fcr ${off ? "off" : ""}" data-k="${esc(r.key)}"><label class="tgl"><input type="checkbox" class="fck" ${off ? "" : "checked"}></label>
+      <div class="fcn"><b>${esc(r.name)}${o.add ? ` <span class="pill ok">added by you</span>` : ""}</b><span class="faint">${r.cur}${r.avg > .5 ? ` · usual ${esc(money0(r.avg, r.cur))}/mo` : " · no history"}${r.items.length ? ` · scheduled ${esc(money0(r.items.reduce((s, x) => s + schedEqD(x), 0), r.cur))}/mo` : ""}</span></div>
+      <span style="display:flex;gap:.3rem;align-items:center"><input type="number" class="fca" step="10" min="0" value="${o.amt ?? ""}" placeholder="${Math.round(r.avg) || "0"}" aria-label="Monthly amount for ${esc(r.name)}">${o.add ? `<button class="ibtn fcx" aria-label="Remove ${esc(r.name)}" title="Remove this line">✕</button>` : ""}</span></div>
+      ${r.items.map(itemRow).join("")}</div>`; };
+  const sec = (kind, title) => { const l = keyList().filter(r => r.kind === kind).sort((a, b) => toBase(Math.max(b.avg, b.items.reduce((s, x) => s + schedEqD(x), 0)), b.cur) - toBase(Math.max(a.avg, a.items.reduce((s, x) => s + schedEqD(x), 0)), a.cur));
+    const tops = D().cats.filter(c => c.type === kind && (!c.parent || !catMap().get(c.parent))).sort((a, b) => a.name.localeCompare(b.name));
+    return `<h3 class="bhead">${title}</h3><div class="fcl">${l.map(catRow).join("") || `<div class="empty">Nothing yet</div>`}</div>
+      <div class="fcadd" data-kind="${kind}"><select class="fcAC" aria-label="Category to add"><option value="">Add a ${kind === "inc" ? "income" : "spending"} line…</option>${tops.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select><select class="fcAU" aria-label="Currency">${CU.map(c => `<option>${c}</option>`).join("")}</select><input type="number" class="fcAA" min="0" step="10" placeholder="Per month" aria-label="Monthly amount"><button class="btn sm" data-fadd="${kind}">Add</button></div>`; };
+  const xr = (k, n, d) => `<div class="fcr ${cs[k]?.off ? "off" : ""}" data-k="${k}"><label class="tgl"><input type="checkbox" class="fck" ${cs[k]?.off ? "" : "checked"}></label><div class="fcn"><b>${n}</b><span class="faint">${esc(d || "none")} a month, trimmed average of the last year</span></div><span></span></div>`;
+  const xRows = [["__xout", "Money moved into investments, savings and lending", Object.entries(XB.out).map(([c, v]) => compact(v, c)).join(" + ")], ["__xcx", "Money moved between currencies", Object.entries(XB.cx).map(([c, v]) => `${v >= 0 ? "+" : ""}${compact(v, c)}`).join(" / ")]];
+  const html = () => `${sec("inc", "Income")}${sec("exp", "Spending")}<h3 class="bhead">Regular transfers</h3><div class="fcl">${xRows.map(r => xr(...r)).join("")}${trs.length ? `<div class="faint" style="padding:.5rem .3rem 0;font-size:.78rem">Scheduled transfers</div>${trs.map(itemRow).join("")}` : ""}</div>`;
+  modal(`<div class="m-head"><h2>Choose what the forecast uses</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <p class="muted" style="margin:0;font-size:.85rem">Untick a category to leave it out, including its scheduled items from Upcoming. Type an amount to use a fixed monthly figure instead of your usual pattern.</p><details style="margin:.3rem 0 .2rem"><summary class="muted" style="font-size:.82rem;cursor:pointer">How this works</summary><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">Under each category are its scheduled items from Upcoming, each with its own tick. Ticked scheduled items still land on their dates and count towards a fixed amount. If you untick only a scheduled item, your usual pattern for that category fills in instead; untick the category to remove it completely. Use <b>Add a line</b> for something you expect that has no history yet.</p></details>
+    <div class="fcsum" id="fcsum"></div><div id="fcBody">${html()}</div>
+    <div class="m-foot"><div><button class="btn ghost" id="fcRst">Reset all</button></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="fcSv">Use my categories</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); const body = $("#fcBody", m);
+    const clean = () => { for (const k of Object.keys(cs)) { const o = cs[k]; if (!o || (!o.off && o.amt == null && !o.add)) delete cs[k]; } };
+    const catOff = k => !!cs[k]?.off;
+    const sum = () => { clean(); let i = 0, e = 0, i0 = 0, e0 = 0;
+      for (const r of keyList()) { const u = toBase(r.avg, r.cur), o = cs[r.key] || {}; const se = r.items.filter(s => !cs["s:" + s.id]?.off).reduce((s, x) => s + schedEqD(x), 0);
+        const v = o.off ? 0 : toBase(Math.max(o.amt != null ? +o.amt : r.avg, se), r.cur); const v0 = toBase(Math.max(r.avg, r.items.reduce((s, x) => s + schedEqD(x), 0)), r.cur);
+        if (r.kind === "inc") { i += v; i0 += v0; } else { e += v; e0 += v0; } }
+      const n = Object.keys(cs).length;
+      $("#fcsum", m).innerHTML = `<div><span class="muted">Income a month</span><b class="money">${esc(compact(i, B))}</b><span class="muted">usual ${esc(compact(i0, B))}</span></div><div><span class="muted">Spending a month</span><b class="money">${esc(compact(e, B))}</b><span class="muted">usual ${esc(compact(e0, B))}</span></div><div><span class="muted">Left over</span><b class="money ${cls(i - e)}">${esc(compact(i - e, B))}</b><span class="muted">${n ? n + " change" + (n === 1 ? "" : "s") : "no changes"}</span></div>`; };
+    const redraw = () => { clean(); body.innerHTML = html(); sum(); };
+    body.addEventListener("change", ev => { const t = ev.target, r = t.closest("[data-k]"); if (!r) return; const k = r.dataset.k;
+      if (t.classList.contains("fck")) { const o = cs[k] ||= {}; if (!t.checked) o.off = true; else delete o.off; r.classList.toggle("off", !t.checked); const g = r.closest(".fcg"); if (g) g.querySelectorAll(".fcs").forEach(x => x.classList.toggle("off", !t.checked || !x.querySelector(".fcsk").checked)); sum(); }
+      else if (t.classList.contains("fcsk")) { const o = cs[k] ||= {}; if (!t.checked) o.off = true; else delete o.off; r.classList.toggle("off", !t.checked); sum(); } });
+    body.addEventListener("input", ev => { const t = ev.target; if (!t.classList.contains("fca")) return; const r = t.closest("[data-k]"), k = r.dataset.k, o = cs[k] ||= {}; if (t.value === "") delete o.amt; else o.amt = Math.max(0, +t.value); sum(); });
+    body.addEventListener("click", ev => { const t = ev.target.closest("button"); if (!t) return;
+      if (t.classList.contains("fcx")) { const k = t.closest("[data-k]").dataset.k; delete cs[k]; redraw(); return; }
+      if (t.dataset.fadd) { const w = t.closest(".fcadd"), kind = w.dataset.kind, ct = +$(".fcAC", w).value, cu = $(".fcAU", w).value, amt = +$(".fcAA", w).value;
+        if (!ct) return toast("Choose a category first"); if (!(amt > 0)) return toast("Enter a monthly amount"); const k = cu + "|" + kind + "|" + ct;
+        if (Bm.get(k)?.avg > .5 || by.has(k) || cs[k]?.add) { const o = cs[k] ||= {}; o.amt = amt; delete o.off; toast("That category already has a line, so its amount was set"); } else cs[k] = { add: true, amt };
+        redraw(); body.querySelector(`[data-g="${CSS.escape(k)}"]`)?.scrollIntoView({ block: "nearest" }); } });
+    $("#fcRst", m).onclick = () => { for (const k of Object.keys(cs)) delete cs[k]; redraw(); };
+    $("#fcSv", m).onclick = () => { clean(); A.cats = JSON.parse(JSON.stringify(cs)); A.mode = "custom"; changed(); close(); renderApp(); const ch = fcChanges(); toast(ch.n ? `Forecast updated: ${ch.n} change${ch.n === 1 ? "" : "s"}. Lines you changed are marked ✎ in the table.` : "Forecast now uses your usual pattern"); };
+    sum(); }, true);
+}
+
+/* ---------- Upcoming: filter by category ---------- */
+function upCatKey(x) { if (x.kind === "card") return "__card"; const s = x.s; if (!s) return "0"; if (s.t === "tr") return "__tr"; const c = s.c?.[0]?.[0]; return c ? String(topCat(c)?.id ?? 0) : "0"; }
+function upSKey(s) { if (s.t === "tr") return "__tr"; const c = s.c?.[0]?.[0]; return c ? String(topCat(c)?.id ?? 0) : "0"; }
+function upCatDlg(items, P) {
+  const B = base(), am = accMap(), g = new Map();
+  const add = (key, v, cur, kind) => { const o = g.get(key) || { n: 0, tot: 0, kind }; o.n++; o.tot += toBase(Math.abs(v), cur || B); g.set(key, o); };
+  for (const x of items) { const key = upCatKey(x), cur = am.get(x.a)?.cur; add(key, x.v || 0, cur, key === "__card" ? "oth" : key === "__tr" ? "oth" : x.v > 0 ? "inc" : "exp"); }
+  for (const s of D().sched) { const key = upSKey(s); if (!g.has(key)) g.set(key, { n: 0, tot: 0, kind: key === "__tr" ? "oth" : s.v > 0 ? "inc" : "exp" }); }
+  const name = k => k === "__card" ? "Card payments due" : k === "__tr" ? "Transfers between accounts" : k === "0" ? "No category" : catMap().get(+k)?.name || "Category";
+  const hid = new Set(P.cf || []);
+  const sect = (kind, title) => { const l = [...g.entries()].filter(([, o]) => o.kind === kind).sort((a, b) => b[1].tot - a[1].tot || name(a[0]).localeCompare(name(b[0]))); return l.length ? `<h3 class="bhead">${title}</h3><div class="list">${l.map(([k, o]) => `<label class="row ufr"><span class="tgl"><input type="checkbox" class="ufk" data-k="${esc(k)}" ${hid.has(k) ? "" : "checked"}></span><div class="r-main"><div class="r-t">${esc(name(k))}</div><div class="r-s">${o.n} coming up in the next 4 months${o.tot ? " · " + esc(compact(o.tot, B)) : ""}</div></div></label>`).join("")}</div>` : ""; };
+  modal(`<div class="m-head"><h2>Show these categories</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+    <div class="row-btns" style="margin-bottom:.4rem"><button class="btn sm" id="ufAll">Select all</button><button class="btn sm" id="ufNone">Deselect all</button><span class="faint" id="ufN" style="align-self:center"></span></div>
+    ${sect("inc", "Money in")}${sect("exp", "Money out")}${sect("oth", "Other")}
+    <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">This only changes what you see on this page (the list, calendar and 90-day totals). It does not change the forecast. To leave things out of the forecast use Forecast → Choose categories.</p>
+    <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="ufGo">Show</button></div></div>`,
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); const cks = () => [...m.querySelectorAll(".ufk")];
+    const upd = () => { const n = cks().filter(c => c.checked).length; $("#ufN", m).textContent = `${n} of ${cks().length} shown`; $("#ufGo", m).disabled = !n; }; cks().forEach(c => c.onchange = upd); upd();
+    $("#ufAll", m).onclick = () => { cks().forEach(c => c.checked = true); upd(); }; $("#ufNone", m).onclick = () => { cks().forEach(c => c.checked = false); upd(); };
+    $("#ufGo", m).onclick = () => { P.cf = new Set(cks().filter(c => !c.checked).map(c => c.dataset.k)); close(); renderApp(); }; });
 }
 
 /* ================= home insights ================= */
@@ -5975,7 +6154,7 @@ function renderApp() {
 function renderView(item) {
   document.body.classList.toggle("wiz", S2.view === "import");
   const v = $("#view"); const nav = S2._navTo !== undefined && S2._navTo === S2.view; S2._navTo = undefined;
-  const views = { home: vHome, appearance: vAppearance, styles: vStyles, data: vDataX, import: vImport, accounts: vAccounts, account: vAccount, transactions: vTransactions, cards: vCards, loans: vLoans, loan: vLoan, people: vPeople, upcoming: vUpcoming, budgets: vBudgets, reports: vReports, gold: vGold, investments: vInvestments, properties: vProperties, kids: vKids, goals: vGoals, forecast: vForecast, currencies: vCurrencies, retire: vRetire, stmt: vStatement };
+  const views = { home: vHome, appearance: vAppearance, styles: vStyles, data: vDataX, import: vImport, accounts: vAccounts, account: vAccount, transactions: vTransactions, cards: vCards, loans: vLoans, loan: vLoan, people: vPeople, upcoming: vUpcoming, budgets: vBudgets, reports: vReports, gold: vGold, investments: vInvestments, properties: vProperties, kids: vKids, goals: vGoals, forecast: vForecast, cats: vCats, currencies: vCurrencies, retire: vRetire, stmt: vStatement };
   S._m = document.querySelectorAll(".scrim").length; scEnter(S2.view);
   try { (views[S2.view] || vSoon)(v, item); if (typeof scMount === "function") scMount(v); if (typeof cardsMount === "function") cardsMount(v); if (typeof weekHomeMount === "function") weekHomeMount(v); if (typeof xlBtns === "function") xlBtns(v); } catch (e) { S._sc = null; throw e; }
   if (nav && !document.body.classList.contains("fx-off") && v.animate) v.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
