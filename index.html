@@ -57,6 +57,7 @@ body.privacy .money:hover{filter:none}
 .brand b{font-family:var(--f-display);font-size:1.15rem;font-weight:800;display:block;line-height:1.1}
 .brand span{font-size:.75rem;color:var(--muted)}
 .nav{display:flex;flex-direction:column;gap:.125rem;overflow-y:auto;margin-inline:-.25rem;padding-inline:.25rem}
+.nav-fold{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none}.nav-fold::after{content:'▾';font-size:.8rem;transition:transform .2s}.nav-fold[data-open='0']::after{transform:rotate(-90deg)}.nav-grp[hidden]{display:none}.nav-grp{display:flex;flex-direction:column;gap:.125rem}
 .nav-sec{font-size:.72rem;color:var(--faint);padding:.7rem .75rem .2rem;font-weight:600}
 .nav a{display:flex;align-items:center;gap:.75rem;padding:.42rem .75rem;border-radius:.75rem;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background var(--dur),color var(--dur),box-shadow var(--dur)}
 .nav a svg{width:1.15rem;height:1.15rem;flex:none}
@@ -160,7 +161,8 @@ body.fx-off .gbody,body.fx-off .g-chev,body.fx-off .gface{transition:none}body.f
 @media (max-width:760px){.ggrid{grid-template-columns:1fr;gap:.85rem}.gface{min-height:7.4rem}.g-tot{font-size:1.45rem}}
 .fmode{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;padding:.8rem 1.1rem;margin-bottom:1rem}.fm-l{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}.fm-d{font-size:.8rem;flex:1;min-width:12rem}
 .fcsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;position:sticky;top:-1.4rem;z-index:2;background:var(--surface);padding:.4rem 0}.fcsum>div{background:var(--surface2);border-radius:.8rem;padding:.6rem .8rem;display:flex;flex-direction:column}.fcsum b{font-family:var(--f-display);font-size:1.1rem}.fcsum span{font-size:.72rem}
-.crow .r-t,.crow .r-s,.ufr .r-s,.ufr .r-t{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.crow .r-main,.ufr .r-main{min-width:0;flex:1}.card-h:has(#cQ){flex-wrap:wrap;gap:.6rem}#cQ{flex:1 1 10rem!important;max-width:none!important}.crow .r-amt,.crow .row-btns{flex-shrink:0}#cQ{padding:.5rem .8rem;border:1px solid var(--line);border-radius:.7rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0;flex:1}.fcadd{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0 .3rem}.fcadd select,.fcadd input{padding:.45rem .6rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0}.fcadd .fcAC{flex:1 1 9rem}.fcadd .fcAA{width:6.5rem}.fcs{margin-left:1.6rem;padding-top:.3rem;padding-bottom:.3rem;grid-template-columns:auto minmax(0,1fr) auto}.fcs .fcn b{font-weight:600;font-size:.88rem}.fcso{display:flex;gap:.5rem;align-items:center;margin:0 0 .2rem 2.1rem;font-size:.8rem;color:var(--muted)}.fcg{border-bottom:1px solid var(--line)}.fcg>.fcr,.fcg>.fcs{border-bottom:0}
+.crow .r-t,.crow .r-s,.ufr .r-s,.ufr .r-t{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.crow .r-main,.ufr .r-main{min-width:0;flex:1}.card-h:has(#cQ){flex-wrap:wrap;gap:.6rem}#cQ{flex:1 1 10rem!important;max-width:none!important}.crow .r-amt,.crow .row-btns{flex-shrink:0}#cQ{padding:.5rem .8rem;border:1px solid var(--line);border-radius:.7rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0;flex:1}.fcadd{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0 .3rem}.fcadd select,.fcadd input{padding:.45rem .6rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0}.fcadd .fcAC{flex:1 1 9rem}.fcadd .fcAA{width:6.5rem}.fcs{margin-left:1.6rem;padding-top:.3rem;padding-bottom:.3rem;grid-template-columns:auto minmax(0,1fr) auto}.fcs .fcn b{font-weight:600;font-size:.88rem}.fco{margin:0 0 .3rem 2.1rem;font-size:.8rem}.fco>summary{cursor:pointer;color:var(--muted);padding:.1rem 0}.fcog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-top:.4rem}.fcog label,.fcom label{display:flex;flex-direction:column;gap:.15rem;font-size:.74rem;color:var(--muted)}.fcog input,.fcom input{padding:.35rem .45rem;border:1px solid var(--line);border-radius:.5rem;background:var(--surface2);color:var(--ink);font:inherit;min-width:0}.fcom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem}@media (max-width:560px){.fcog{grid-template-columns:1fr 1fr}}
+.fcso{display:flex;gap:.5rem;align-items:center;margin:0 0 .2rem 2.1rem;font-size:.8rem;color:var(--muted)}.fcg{border-bottom:1px solid var(--line)}.fcg>.fcr,.fcg>.fcs{border-bottom:0}
 .fcl{display:flex;flex-direction:column}.fcr{display:grid;grid-template-columns:auto minmax(0,1fr) 7rem;gap:.7rem;align-items:center;padding:.5rem .3rem;border-bottom:1px solid var(--line);transition:opacity var(--dur)}
 .fcr.off{opacity:.45}.fcr.off .fcn b{text-decoration:line-through}.fcn{display:flex;flex-direction:column;min-width:0}.fcn span{font-size:.74rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fca{background:var(--surface2);border:1px solid var(--line);border-radius:.6rem;padding:.42rem .55rem;color:var(--ink);width:100%;text-align:right}
@@ -364,6 +366,7 @@ details summary{cursor:pointer}
   .hbar2{grid-template-columns:minmax(0,7rem) minmax(0,1fr) auto 2.8rem}.modal{padding:1.1rem;border-radius:1.2rem}.scrim{padding-top:2vh}.amt-in{font-size:1.7rem}.r-amt .row-btns{justify-content:flex-end}}
 
 /* phase 4 */
+.hcseg{display:inline-flex;gap:.2rem;background:rgba(0,0,0,.22);border-radius:.7rem;padding:.2rem}.hcseg button{border:0;background:transparent;color:inherit;font:inherit;font-size:.78rem;font-weight:700;padding:.25rem .6rem;border-radius:.5rem;cursor:pointer;opacity:.8}.hcseg button[aria-pressed=true]{background:rgba(255,248,230,.95);color:#4A3205;opacity:1}
 .gold-hero{background:radial-gradient(120% 140% at 100% 0%,rgba(255,240,200,.55),transparent 55%),linear-gradient(150deg,#B8860B,#7A5208 70%,#4A3205);color:#FFF8E6;box-shadow:var(--e2),0 30px 60px -20px rgba(184,134,11,.6)}
 .pxgrid{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr));gap:.4rem .6rem;align-items:center}
 .pxh{font-size:.75rem;color:var(--muted);font-weight:700;text-align:right}.pxc{font-weight:600;font-size:.88rem}.pxv{text-align:right;font-weight:800;font-size:1.02rem;padding:.45rem .5rem;border-radius:.6rem;background:var(--surface2)}.pxv i{color:var(--faint);font-style:normal}
@@ -470,6 +473,7 @@ table.heat td{border-radius:0}
 @media (min-width:761px){
   .shell{grid-template-columns:4.6rem minmax(0,1fr);transition:grid-template-columns .35s cubic-bezier(.2,.8,.2,1)}
   .rail{width:4.6rem;overflow:hidden;transition:width .32s cubic-bezier(.2,.8,.2,1) .12s,box-shadow .32s;white-space:nowrap}
+  body:not(.rail-pinned) .rail:not(:hover):not(:focus-within) .nav-grp[hidden]{display:flex}
   .rail .brand,.rail .nav a,.rail .rail-add{padding-left:.95rem}.rail .nav a{padding-left:1.05rem}
   .rail .brand div,.rail .nav-sec,.rail .nav a span,.rail .nav .soon,.rail .rail-foot,.rail .rail-add span,.rail .pin{opacity:0;transition:opacity .2s}
   .rail .nav-sec{height:.6rem;padding-block:.3rem 0;overflow:hidden}
@@ -594,7 +598,7 @@ const todayISO = () => isoLocal(new Date());
 const cdToISO = t => t == null ? null : isoLocal(new Date((t + 978307200) * 1000));
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function fmtDate(iso) { if(!iso) return ""; const [y,m,d] = iso.split("-"); return +d + " " + MONTHS[+m-1] + " " + y; }
-const fmtMonth = ym => { const [y,m] = ym.split("-"); return MONTHS[+m-1] + " " + y.slice(2); };
+const fmtMonth = ym => { const [y,m] = ym.split("-"); if (typeof fmtMonthR === "function") { const r = fmtMonthR(y, m); if (r) return r; } return MONTHS[+m-1] + " " + y.slice(2); };
 const addMonths = (iso, n) => { const [y,m,d] = iso.split("-").map(Number); const dt = new Date(y, m-1+n, 1); const last = new Date(dt.getFullYear(), dt.getMonth()+1, 0).getDate(); dt.setDate(Math.min(d, last)); return isoLocal(dt); };
 const monthEnd = ym => { const [y,m] = ym.split("-").map(Number); return isoLocal(new Date(y, m, 0)); };
 
@@ -1125,7 +1129,7 @@ function areaChart(el, pts, cur, { h = 240, color = "var(--accent)", label = "Ne
   let d = `M${P[0][0]},${P[0][1]}`;
   for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2; const t = .18;
     d += `C${p1[0] + (p2[0] - p0[0]) * t},${p1[1] + (p2[1] - p0[1]) * t} ${p2[0] - (p3[0] - p1[0]) * t},${p2[1] - (p3[1] - p1[1]) * t} ${p2[0]},${p2[1]}`; }
-  const base = y(Math.max(mn, Math.min(0, mx) > mn ? 0 : mn));
+  const base = y(Math.min(mx, Math.max(mn, 0))); // zero line, kept inside the chart (all-negative balances hang from the top edge)
   const g = uid(), f = uid();
   const every = Math.ceil(pts.length / Math.max(2, Math.floor((W - L) / 72)));
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(label)} over time">
@@ -2143,12 +2147,14 @@ function vGold(v) {
   const accVal = acc ? toBase(bal(acc.id), acc.cur) : 0;
   const loans = new Map(); for (const g of T.items) if (g.loc === "pledged" && g.loan) loans.set(g.loan, (loans.get(g.loan) || 0) + goldItemValue(g).base);
   const P = S2.pg ||= { q: "", sort: "value" };
+  const HCS = fx().map(c => c.code), HC = HCS.includes(P.hc) ? P.hc : B;
   const list = T.items.slice().filter(g => !P.q || (g.name + " " + (g.notes || "")).toLowerCase().includes(P.q.toLowerCase())).sort((a, b) => P.sort === "grams" ? (b.grams || 0) - (a.grams || 0) : P.sort === "date" ? (b.date || "").localeCompare(a.date || "") : goldItemValue(b).base - goldItemValue(a).base);
   v.innerHTML = `${topbar("Gold", `${T.items.length} items · prices of ${fmtDate(px.date)}`, `<button class="btn" id="gPx">Update prices</button>${T.items.length ? `<button class="btn primary" id="gAdd">${icon("plus", 2.2)}Add item</button>` : ""}`)}
     <section class="grid">
-      <div class="hero gold-hero sweep"><div class="lab">Gold value at today's prices</div><div class="big money">${esc(money(T.base, B, { dec: false }))}</div>
+      <div class="hero gold-hero sweep"><div class="lab" style="display:flex;justify-content:space-between;gap:.6rem;flex-wrap:wrap;align-items:center"><span>Gold value at today's prices</span>${HCS.length > 1 ? `<span class="hcseg" role="group" aria-label="Show in">${HCS.map(c => `<button type="button" data-hc="${c}" aria-pressed="${c === HC}">${c}</button>`).join("")}</span>` : ""}</div><div class="big money">${esc(money(fromTo(T.base, B, HC), HC, { dec: false }))}</div>
+        ${HCS.length > 1 ? `<div style="font-size:.9rem;opacity:.92;margin:-.2rem 0 .3rem">${HCS.filter(c => c !== HC).map(c => `≈ <b class="money">${esc(money(fromTo(T.base, B, c), c, { dec: false }))}</b>`).join(" · ")} at your exchange rate</div>` : ""}
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.88rem;opacity:.92"><span><b class="num">${T.grams.toFixed(1)} g</b> total weight</span><span><b class="num">${T.fine.toFixed(1)} g</b> pure-gold equivalent</span>${hasReg("IN") || hasReg("AE") ? `<span><b class="num">${(T.grams / 8).toFixed(1)}</b> sovereigns (8 g)</span>` : `<span><b class="num">${(T.fine / 31.1035).toFixed(2)}</b> troy oz pure</span>`}</div>
-        ${T.paid ? `<div class="delta" style="align-self:flex-start">${T.base >= T.paid ? "▲" : "▼"} <span class="money">${esc(compact(Math.abs(T.base - T.paid), B))}</span> ${T.base >= T.paid ? "gain" : "loss"} on ${esc(compact(T.paid, B))} paid</div>` : ""}</div>
+        ${T.paid ? `<div class="delta" style="align-self:flex-start">${T.base >= T.paid ? "▲" : "▼"} <span class="money">${esc(compact(fromTo(Math.abs(T.base - T.paid), B, HC), HC))}</span> ${T.base >= T.paid ? "gain" : "loss"} on ${esc(compact(fromTo(T.paid, B, HC), HC))} paid</div>` : ""}</div>
       <div class="card span-7"><div class="card-h"><h2>Today's prices per gram</h2><span class="note">${esc(ctryList().some(c => px[c.id] && px[c.id][24]) ? (ctryList().some(c => c.id === "UAE" || c.id === "India") ? px.src || "Entered by you" : "Entered by you") : "Estimated from the international gold price at your exchange rate. Tap Update prices for local prices.")}</span></div>
         <div class="pxgrid"><div class="pxh"></div><div class="pxh">24K</div><div class="pxh">22K</div><div class="pxh">21K</div><div class="pxh">18K</div>
           ${ctryList().map(C => C.id).map(c => { const cu = ctryCur(c), own = px[c] && px[c][24]; return `<div class="pxc">${esc(mktName(c))} (${esc(curSym(cu).trim())})</div>${[24, 22, 21, 18].map(k => `<div class="money pxv">${esc(money(pricePerGram(c, k), cu, { dec: pricePerGram(c, 24) < 2000 }).replace(curSym(cu), "").trim())}${!(px[c] || {})[k] ? `<i title="${own ? "Worked out from the 24K price" : "Converted from another market at your exchange rate"}">*</i>` : ""}</div>`).join("")}`; }).join("")}</div>
@@ -2166,6 +2172,7 @@ function vGold(v) {
         ${acc ? `<p class="muted" style="font-size:.8rem;margin:0">Until then, ${esc(acc.name)} keeps its recorded value of ${esc(compact(accVal, B))}.</p>` : ""}</div>`}
     </section>`;
   wireTop();
+  v.querySelectorAll("[data-hc]").forEach(b => b.onclick = () => { P.hc = b.dataset.hc; renderApp(); });
   $("#gPx").onclick = goldPriceEditor; if ($("#gPast")) $("#gPast").onclick = goldPastPrice; v.querySelectorAll("[data-gm]").forEach(b => b.onclick = () => { S2.pg.gm = b.dataset.gm === "all" ? "all" : +b.dataset.gm; renderApp(); }); v.querySelectorAll("#gAdd").forEach(b => b.onclick = () => goldEditor(null));
   v.querySelectorAll("[data-g]").forEach(r => { r.onclick = () => goldEditor(D().gold.find(g => g.id === +r.dataset.g)); r.onkeydown = e => { if (e.key === "Enter") r.click(); }; });
   v.querySelectorAll("[data-gs]").forEach(b => b.onclick = () => { P.sort = b.dataset.gs; renderApp(); });
@@ -2287,11 +2294,11 @@ function invEditor(a) {
       <label>Premium or contribution<input type="number" id="ip" step="1" value="${i.premium || ""}"></label><label>Paid<select id="if">${[[12, "Monthly"], [4, "Quarterly"], [2, "Half-yearly"], [1, "Yearly"]].map(([k, l]) => `<option value="${k}" ${(i.freq || 1) === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label>Next premium due<input type="date" id="ind" value="${i.nextPrem || ""}"></label><label>Sum assured<input type="number" id="isa" step="1" value="${i.sumAssured || ""}"></label>
       <label>Maturity date<input type="date" id="im" value="${i.maturity || ""}"></label><label>Expected at maturity<input type="number" id="imv" step="1" value="${i.matValue || ""}"></label>
-      <label>Interest rate (% a year)<input type="number" id="ir" step="0.01" value="${i.rate || ""}"></label><label>Policy or account number<input type="text" id="ino" value="${esc(i.no || "")}"></label></form>
+      <label>Premium paid from<select id="ipf"><option value="">Automatic (main bank account)</option>${accOpts(i.payFrom)}</select></label><label>Maturity paid into<select id="ipt"><option value="">Automatic (main bank account)</option>${accOpts(i.payTo)}</select></label><label>Interest rate (% a year)<input type="number" id="ir" step="0.01" value="${i.rate || ""}"></label><label>Policy or account number<input type="text" id="ino" value="${esc(i.no || "")}"></label></form>
     <p class="muted" style="font-size:.8rem;margin:0">Changing the current value saves a value-update adjustment, not income.</p>
     <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="is">Save</button></div></div>`,
   (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
-    $("#is", m).onclick = () => { a.inv = { type: $("#it", m).value, premium: +$("#ip", m).value || 0, freq: +$("#if", m).value, nextPrem: $("#ind", m).value, sumAssured: +$("#isa", m).value || 0, maturity: $("#im", m).value, matValue: +$("#imv", m).value || 0, rate: +$("#ir", m).value || 0, no: $("#ino", m).value.trim() };
+    $("#is", m).onclick = () => { a.inv = { type: $("#it", m).value, premium: +$("#ip", m).value || 0, freq: +$("#if", m).value, nextPrem: $("#ind", m).value, sumAssured: +$("#isa", m).value || 0, maturity: $("#im", m).value, matValue: +$("#imv", m).value || 0, rate: +$("#ir", m).value || 0, no: $("#ino", m).value.trim(), payFrom: +$("#ipf", m).value || null, payTo: +$("#ipt", m).value || null };
       const nv = +$("#iv", m).value, diff = Math.round((nv - bal(a.id)) * 100) / 100; if ($("#iv", m).value !== "" && Math.abs(diff) >= .01) D().tx.push(stamp({ id: newId(), t: "adj", a: a.id, d: todayISO(), v: diff, p: null, ds: "Value update", n: "", c: null }));
       stamp(a); changed(); close(); renderApp(); toast("Saved"); }; });
 }
@@ -2466,7 +2473,7 @@ function runForecast(lv = {}, opt = {}) {
   const start = opt.cutoff ? balAt(cutoff) : balances();
   const B = baseline(cutoff);
   const FM = opt.mode || fcA().mode || "mix", OV = FM === "custom" ? fcA().cats || {} : {};
-  const sch = useSched ? D().sched.filter(s => !s.off && s.next && !fcSchedOff(s, OV, am)) : [];
+  const sch = useSched ? [...D().sched, ...invSched()].filter(s => !s.off && s.next && !fcSchedOff(s, OV, am)) : [];
   const schedEq = new Map(); const BP = new Map(B); for (const [k, o] of Object.entries(OV)) if (o && o.add && !BP.has(k)) { const [cu, kd, ct] = k.split("|"); BP.set(k, { cur: cu, kind: kd, cat: +ct, tot: 0, avg: 0, mo: new Array(12).fill(0) }); }
   for (const s of sch) { if (s.t === "tr") continue; const a = am.get(s.a); if (!a || (!D().settings.invFlows && kindOf(a) === "investment")) continue; const c = s.c?.[0]?.[0]; if (c && isInterest(c)) continue;
     const kind = c ? catMap().get(c)?.type || (s.v < 0 ? "exp" : "inc") : (s.v < 0 ? "exp" : "inc"); const key = a.cur + "|" + kind + "|" + (c ? topCat(c)?.id : 0); schedEq.set(key, (schedEq.get(key) || 0) + schedEqD(s)); }
@@ -2495,9 +2502,9 @@ function runForecast(lv = {}, opt = {}) {
   let md = DET ? newMd() : null; if (md) md.open = liqNow(); const addSd = (key, name, v) => { const o = md.sd[key] ||= {}; o[name] = (o[name] || 0) + v; };
   const planMonth = (ym, i) => { const mo = +ym.slice(5, 7) - 1, dim = new Date(+ym.slice(0, 4), mo + 1, 0).getDate(), yrs = i / 365; const plan = {}, cats = [];
     const ret = RT && ym >= RT.date.slice(0, 7);
-    for (const [key, e] of BP) { if (ret && (e.kind === "exp" || !RT.keep(e.cat))) continue; if (FM === "sched") continue; const ov = OV[key]; if (ov?.off || ov?.sonly) continue; let v = ov && ov.amt != null ? +ov.amt : (0.6 * e.avg + 0.4 * e.mo[mo]); v = Math.max(0, v - (schedEq.get(key) || 0));
-      if (e.kind === "exp") { v *= Math.pow(1 + A.infl / 100, yrs) * (1 + (lv.spend || 0) / 100); plan[e.cur] = (plan[e.cur] || 0) - v; if (DET) cats.push(["exp", e.cat, e.cur, v / dim]); if (i < 366) catOut.set(e.cat, (catOut.get(e.cat) || 0) + toA(v, e.cur)); }
-      else { v *= (1 + (lv.income || 0) / 100) * Math.pow(1 + (A.incg ?? 0) / 100, yrs); plan[e.cur] = (plan[e.cur] || 0) + v; if (DET) cats.push(["inc", e.cat, e.cur, v / dim]); } }
+    for (const [key, e] of BP) { if (ret && (e.kind === "exp" || !RT.keep(e.cat))) continue; if (FM === "sched") continue; const ov = OV[key]; if (ov?.off || ov?.sonly) continue; if (ov && ((ov.from && ym < ov.from) || (ov.to && ym > ov.to))) continue; const mv = ov?.m12?.[mo], gr = ov && ov.g != null && ov.g !== "" ? +ov.g / 100 : null; let v = mv != null && mv !== "" ? +mv : ov && ov.amt != null ? +ov.amt : (0.6 * e.avg + 0.4 * e.mo[mo]); v = Math.max(0, v - (schedEq.get(key) || 0));
+      if (e.kind === "exp") { v *= Math.pow(1 + (gr ?? A.infl / 100), yrs) * (1 + (lv.spend || 0) / 100); plan[e.cur] = (plan[e.cur] || 0) - v; if (DET) cats.push(["exp", e.cat, e.cur, v / dim]); if (i < 366) catOut.set(e.cat, (catOut.get(e.cat) || 0) + toA(v, e.cur)); }
+      else { v *= (1 + (lv.income || 0) / 100) * Math.pow(1 + (gr ?? (A.incg ?? 0) / 100), yrs); plan[e.cur] = (plan[e.cur] || 0) + v; if (DET) cats.push(["inc", e.cat, e.cur, v / dim]); } }
     if (ret) { const v = RT.needM * Math.pow(1 + RT.infl, yrs); plan[RT.PC] = (plan[RT.PC] || 0) - v; if (DET) cats.push(["exp", "ret", RT.PC, v / dim]); }
     if (RT) { for (const p of RT.pens) if (ym >= p.from.slice(0, 7)) { const v = p.monthly * (p.infl ? Math.pow(1 + RT.infl, yrs) : 1); plan[p.cur] = (plan[p.cur] || 0) + v; if (DET) cats.push(["inc", "pens", p.cur, v / dim]); }
       if (annM) { plan[RT.PC] = (plan[RT.PC] || 0) + annM; if (DET) cats.push(["inc", "pens", RT.PC, annM / dim]); }
@@ -3257,9 +3264,11 @@ function loanSchedule(a, opt = {}) {
   const st = loanModelCfg(c, b0, asOf, opt);
   if (opt.extra) { if (opt.mode === "emi" && !st.n) { const t = loanModelCfg(c, b0, asOf, opt); let d = asOf, m = 0; while (m < 600 && t.step(d = nextDue(d, c.dueDay))) m++; st.n = st.k + m; } st.prepay(opt.extra, opt.mode); }
   const rows = []; let d = opt.fromStart ? addDays(asOf, 14) : asOf, interest = 0, ins = 0; const max = c.method === "overdraft" ? 12 : 600;
-  while (rows.length < max) { d = nextDue(d, c.dueDay); const r = st.step(d); if (!r) break; rows.push(r); interest += r.i; ins += r.ins; }
+  let extras = 0, mDone = 0;
+  while (rows.length < max) { d = nextDue(d, c.dueDay); const r = st.step(d); if (!r) break; rows.push(r); interest += r.i; ins += r.ins;
+    if (opt.monthly > 0 && (!opt.mMonths || mDone < opt.mMonths) && st.b > .5 && c.method !== "overdraft") { const ex = Math.min(opt.monthly, st.b); st.prepay(ex, "tenure"); extras += ex; mDone++; r.extra = ex; r.b = st.b; if (st.b <= .5) st.done = true; } }
   const never = !st.done && c.method !== "overdraft";
-  return { rows, interest, ins, months: never ? Infinity : rows.length, never, st };
+  return { rows, interest, ins, months: never ? Infinity : rows.length, never, st, extras, mDone };
 }
 function loanInfo(a) {
   return memo("loanInfo" + a.id, () => {
@@ -3296,7 +3305,7 @@ function compareMethods(P, rate, n) {
 function vLoan(v) {
   const a = accMap().get(S2.p?.id); if (!a) return go("loans"); const i = loanInfo(a), c = i.c, P = S2.p; P.extra ??= 0; P.pmode ??= "tenure"; P.sq ??= todayISO(); P.all ??= false;
   const W = loanWord(c), Wc = loanWord(c, true), cur = a.cur;
-  const what = i.am && P.extra > 0 ? loanSchedule(a, { extra: P.extra, mode: P.pmode }) : null; const pen = P.extra * (+c.pen || 0) / 100;
+  P.mx ??= 0; P.mn ??= 0; const what = i.am && (P.extra > 0 || P.mx > 0) ? loanSchedule(a, { extra: P.extra, mode: P.pmode, monthly: P.mx, mMonths: P.mn }) : null; const pen = (P.extra + (what?.extras || 0)) * (+c.pen || 0) / 100;
   const sq = settleQuote(a, P.sq); const cmpP = +c.principal || i.b, cmpN = +c.tenure || (i.am && isFinite(i.am.months) ? Math.min(360, i.am.months) : 60); const cmp = c.method !== "none" && i.rate > 0 && cmpP > 0 ? compareMethods(cmpP, i.rate, cmpN) : [];
   const rows = i.am ? i.am.rows : []; const shown = P.all ? rows : rows.slice(0, 36);
   const chip = (t, cls = "") => `<span class="lchip ${cls}">${esc(t)}</span>`;
@@ -3311,11 +3320,12 @@ function vLoan(v) {
           ${i.apr ? `<span>APR over the full term</span><b>${i.apr.nom.toFixed(2)}% <span class="faint">(${i.apr.eff.toFixed(2)}% eff.)</span></b><span>Total cost of the loan</span><b class="money">${esc(compact(i.apr.total + (+c.fee || 0) + i.apr.ins, cur))}</b>` : ""}</div>
         ${i.guessed ? `<div class="muted" style="font-size:.8rem">Rate and instalment are estimated from the last 6 months of payments. Set the exact terms in Loan settings.</div>` : ""}</div>
       <div class="card span-8"><div class="card-h"><h2>Prepayment what-if</h2>${c.pen ? `<span class="note">${c.pen}% prepayment charge</span>` : ""}</div>
-        <div class="form"><label>Pay extra now (${cur})<input type="number" id="extra" step="1000" min="0" value="${P.extra || ""}" placeholder="e.g. 50000"></label><label>Then<div class="seg" role="group">${[["tenure", "Keep EMI, finish sooner"], ["emi", "Keep term, lower EMI"]].map(([k, l]) => `<button type="button" data-pm="${k}" aria-pressed="${P.pmode === k}">${l}</button>`).join("")}</div></label></div>
+        <div class="form"><label>One-off extra now (${cur})<input type="number" id="extra" step="1000" min="0" value="${P.extra || ""}" placeholder="e.g. 50000"></label><label>Extra every month (${cur})<input type="number" id="mx" step="500" min="0" value="${P.mx || ""}" placeholder="e.g. 5000"></label><label>For how many months<input type="number" id="mn" step="1" min="0" value="${P.mn || ""}" placeholder="blank = until paid off"></label><label>${P.mx > 0 ? "One-off extra then" : "Then"}<div class="seg" role="group">${[["tenure", "Keep EMI, finish sooner"], ["emi", "Keep term, lower EMI"]].map(([k, l]) => `<button type="button" data-pm="${k}" aria-pressed="${P.pmode === k}">${l}</button>`).join("")}</div></label></div>
         ${what && i.am && !i.am.never ? `<div class="whatif"><div><span class="muted">Loan ends</span><b>${what.rows.length ? fmtDate(what.rows.at(-1).d) : "Now"}</b><span class="pos">${i.am.months - what.months > 0 ? i.am.months - what.months + " months sooner" : "Same end date"}</span></div>
           <div><span class="muted">${Wc} saved</span><b class="money pos">${esc(money(i.am.interest - what.interest - pen, cur, { dec: false }))}</b><span class="muted">${pen ? "after a " + esc(money(pen, cur, { dec: false })) + " charge" : esc(money(what.interest, cur, { dec: false })) + " left"}</span></div>
+          <div><span class="muted">Extra you pay</span><b class="money">${esc(money(P.extra + what.extras, cur, { dec: false }))}</b><span class="muted">${what.mDone ? P.mx.toLocaleString() + " × " + what.mDone + " month" + (what.mDone === 1 ? "" : "s") + (P.extra ? " + " + P.extra.toLocaleString() + " now" : "") : "one-off"}</span></div>
           <div><span class="muted">New instalment</span><b class="money">${esc(money(what.rows.length > 1 ? what.rows[0].pay : 0, cur, { dec: false }))}</b><span class="muted">was ${esc(money(i.emi, cur, { dec: false }))}</span></div></div>`
-          : `<p class="muted">Enter an amount to see how much sooner the loan ends, or how much the EMI falls, and the ${W} you save.</p>`}</div>
+          : `<p class="muted">Enter a one-off amount, or an extra amount every month, to see how much sooner the loan ends, or how much the EMI falls, and the ${W} you save.</p>`}</div>
       <div class="card span-6"><div class="card-h"><h2>Settle in full</h2><input type="date" id="sqd" value="${P.sq}" class="sq-d"></div>
         <div class="kv"><span>Principal outstanding</span><b class="money">${esc(money(sq.principal, cur))}</b><span>${Wc} built up</span><b class="money">${esc(money(sq.accrued, cur))}</b><span>Early settlement charge${c.pen ? " (" + c.pen + "%)" : ""}</span><b class="money">${esc(money(sq.penalty, cur))}</b><span style="font-weight:700;color:var(--ink)">Pay to close</span><b class="money" style="font-size:1.1rem">${esc(money(sq.total, cur))}</b></div>
         <p class="muted" style="font-size:.78rem;margin:.6rem 0 0">${esc(sq.note)} An estimate; ask the lender for the exact figure.</p></div>
@@ -3329,7 +3339,7 @@ function vLoan(v) {
         ${shown.length ? shown.map(r => `<tr><td>${fmtDate(r.d)}</td><td class="r money">${esc(money(r.pay, cur, { dec: false }))}</td><td class="r money">${esc(money(r.i, cur, { dec: false }))}</td><td class="r money ${r.pr < -.5 ? "neg" : ""}">${esc(money(r.pr, cur, { dec: false }))}</td>${c.ins ? `<td class="r money">${esc(money(r.ins, cur, { dec: false }))}</td>` : ""}<td class="r money">${esc(money(r.b, cur, { dec: false }))}</td></tr>`).join("") : `<tr><td colspan="6" class="empty">Set the loan terms to see the schedule</td></tr>`}</tbody></table></div></div>
     </section>`;
   wireTop(); $("#back").onclick = () => go("loans");
-  $("#extra").onchange = e => { P.extra = +e.target.value || 0; renderApp(); };
+  $("#extra").onchange = e => { P.extra = +e.target.value || 0; renderApp(); }; $("#mx").onchange = e => { P.mx = +e.target.value || 0; renderApp(); }; $("#mn").onchange = e => { P.mn = Math.max(0, Math.round(+e.target.value || 0)); renderApp(); };
   v.querySelectorAll("[data-pm]").forEach(b => b.onclick = () => { P.pmode = b.dataset.pm; renderApp(); });
   $("#sqd").onchange = e => { P.sq = e.target.value || todayISO(); renderApp(); };
   $("#lset").onclick = () => loanEditor(a); $("#emi").onclick = () => recordEMI(a, i);
@@ -4158,7 +4168,11 @@ function compact(v, cur) {
   else { if (a >= 1e9) s = f2.format(a / 1e9) + "B"; else if (a >= 1e6) s = f2.format(a / 1e6) + "M"; else if (a >= 1e4) s = f1.format(a / 1e3) + "K"; else s = nf.STD0.format(a); }
   return symAfter(cur) ? (neg ? "−" : "") + s + " " + curSym(cur) : (neg ? "−" : "") + curSym(cur) + s;
 }
-function fmtDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-"); const o = D() ? reg().date : "dmy"; return o === "mdy" ? `${MONTHS[+m - 1]} ${+d}, ${y}` : o === "ymd" ? `${y}-${m}-${d}` : `${+d} ${MONTHS[+m - 1]} ${y}`; }
+function fmtDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-"); const o = D() ? reg().date : "dmy"; const dd = String(d).padStart(2, "0");
+  return o === "mdy" ? `${MONTHS[+m - 1]} ${+d}, ${y}` : o === "ymd" ? `${y}-${m}-${d}` : o === "dmys" ? `${dd}/${m}/${y}` : o === "dmyd" ? `${dd}-${m}-${y}` : o === "mdys" ? `${m}/${dd}/${y}` : `${+d} ${MONTHS[+m - 1]} ${y}`; }
+/* month labels follow the chosen date style: numeric styles use 10/2026 or 2026-10, the others keep Oct 26 */
+function fmtMonthR(y, m) { const o = D() ? reg().date : "dmy"; const mm = String(m).padStart(2, "0"); return o === "ymd" ? `${y}-${mm}` : (o === "dmys" || o === "dmyd" || o === "mdys") ? `${mm}/${y}` : null; }
+const DATE_FORMATS = [["dmy", "31 Dec 2026 (day first)"], ["mdy", "Dec 31, 2026 (month first)"], ["dmys", "31/12/2026"], ["dmyd", "31-12-2026"], ["mdys", "12/31/2026"], ["ymd", "2026-12-31"]];
 function fyMonth() { return D() ? (+reg().fy || 1) : 1; }
 function fyStart(iso) { const fm = fyMonth(); const y = +iso.slice(0, 4), m = +iso.slice(5, 7); return (m >= fm ? y : y - 1) + "-" + String(fm).padStart(2, "0") + "-01"; }
 function fyEnd(start) { return addDays(addMonths(start, 12), -1); }
@@ -4174,7 +4188,7 @@ function defaultCats(nextId) { const cats = []; let id = nextId; const C = (name
 function regionFields(r, opt = {}) { const monthOpts = MONTHS.map((m, i) => `<option value="${i + 1}" ${+r.fy === i + 1 ? "selected" : ""}>${m}</option>`).join("");
   return `<label>Your name<input type="text" id="rgName" value="${esc(r.name || "")}" placeholder="Shown in greetings"></label>
     <label>Home country<select id="rgHome">${REGC_LIST.map(x => `<option value="${x[0]}" ${x[0] === r.home ? "selected" : ""}>${x[1]} (${x[2]})</option>`).join("")}</select></label>
-    <label>Dates<select id="rgDate">${[["dmy", "31 Dec 2026 (day first)"], ["mdy", "Dec 31, 2026 (month first)"], ["ymd", "2026-12-31"]].map(([k, l]) => `<option value="${k}" ${r.date === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    <label>Dates<select id="rgDate">${DATE_FORMATS.map(([k, l]) => `<option value="${k}" ${r.date === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label>Numbers<select id="rgNum">${Object.entries(NUM_LBL).map(([k, l]) => `<option value="${k}" ${r.num === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label>Financial year starts in<select id="rgFy">${monthOpts}</select><span class="hint">For yearly reports and tax summaries</span></label>
     ${opt.extra !== false ? `<div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.35rem">Also show local features for</div><div class="rgx">${Object.entries(FEAT).map(([k, l]) => `<label class="tgl"><input type="checkbox" data-rgx="${k}" ${k === r.home || (r.extra || []).includes(k) || (k === "EU" && REGC(r.home)?.cur === "EUR") ? "checked" : ""} ${k === r.home || (k === "EU" && REGC(r.home)?.cur === "EUR") ? "disabled" : ""}> ${esc(l)}</label>`).join("")}</div></div>` : ""}`; }
@@ -4478,7 +4492,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-07 · d5e309"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-07 · ce8aef"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -5340,7 +5354,7 @@ function schedMonthlyEquiv(s) { if (s.repeat === false) return 0; const n = s.ev
 /* the part that is taken out of the "usual month" so nothing is counted twice: only open-ended items */
 const schedEqD = s => (s.repeat === false || s.end || s.left != null) ? 0 : schedMonthlyEquiv(s);
 function schedXferDedupe(XB, sch, am, modelled) {
-  for (const s of sch) { if (s.t !== "tr" || s.repeat === false || s.end || s.left != null) continue; const a = am.get(s.a), b = s.to ? am.get(s.to) : null; if (!a || (b && modelled.has(b.id))) continue; const eq = schedMonthlyEquiv(s); if (!eq) continue;
+  for (const s of sch) { if (s.t !== "tr" || s.repeat === false || (s.end && !s.ded) || s.left != null) continue; const a = am.get(s.a), b = s.to ? am.get(s.to) : null; if (!a || (b && modelled.has(b.id))) continue; const eq = schedMonthlyEquiv(s); if (!eq) continue;
     const la = LIQ.has(kindOf(a)), lb = b ? LIQ.has(kindOf(b)) : false;
     if (la && !lb) { if (XB.out[a.cur] != null) XB.out[a.cur] = Math.max(0, XB.out[a.cur] - eq); }
     else if (la && lb && b.cur !== a.cur) { const rv = s.rv > 0 ? +s.rv : fromTo(Math.abs(s.v), a.cur, b.cur), eqR = eq * rv / Math.abs(s.v); if (XB.cx[a.cur] != null) XB.cx[a.cur] = Math.min(0, XB.cx[a.cur] + eq); if (XB.cx[b.cur] != null) XB.cx[b.cur] = Math.max(0, XB.cx[b.cur] - eqR); } }
@@ -5393,8 +5407,8 @@ function vUpcoming(v) {
   const mo = { out: 0, in: 0 }; for (const s of act) { if (s.t === "tr") continue; const a = am.get(s.a); const q = toBase(schedMonthlyEquiv(s), a?.cur); if (s.v < 0) mo.out += q; else mo.in += q; }
   const fxHint = s => s.oc && s.oa ? ` · ${money(s.oa, s.oc)}` : "";
   const row = x => { const a = am.get(x.a), s = x.s;
-    return `<div class="row urow"><span class="dbadge ${x.d < now ? "over" : ""}"><b>${+x.d.slice(8)}</b><i>${MONTHS[+x.d.slice(5, 7) - 1]}</i></span><div class="r-main"><div class="r-t">${s ? `<a class="slink" data-ed="${s.id}" role="button" tabindex="0">${esc(x.label)}</a>` : esc(x.label)}</div><div class="r-s">${x.kind === "card" ? "Card statement" : esc(schedWhen(s))} · ${esc(a?.name || "")}${s && s.t === "tr" && s.to ? " → " + esc(accName(s.to)) : ""}${s ? esc(fxHint(s)) : ""}</div></div>
-      <div class="r-amt"><span class="money ${s && s.t === "tr" ? "" : cls(x.v)}">${esc(money(x.v, a?.cur || B, { dec: false }))}</span>${x.first ? `<span class="row-btns">${x.kind === "sched" ? `<button class="btn sm primary" data-rec="${s.id}">Record</button><button class="btn sm" data-snz="${s.id}">+3 days</button><button class="btn sm" data-skip="${s.id}">Skip</button><button class="btn sm" data-ed="${s.id}">Edit</button>` : `<button class="btn sm primary" data-cpay="${x.acc.id}">Pay</button>`}</span>` : ""}</div></div>`; };
+    return `<div class="row urow"><span class="dbadge ${x.d < now ? "over" : ""}"><b>${+x.d.slice(8)}</b><i>${MONTHS[+x.d.slice(5, 7) - 1]}</i></span><div class="r-main"><div class="r-t">${s ? `<a class="slink" data-ed="${s.id}" role="button" tabindex="0">${esc(x.label)}</a>` : esc(x.label)}</div><div class="r-s">${x.kind === "card" ? "Card statement" : x.kind === "inv" ? esc(x.when) : esc(schedWhen(s))} · ${esc(a?.name || "")}${s && s.t === "tr" && s.to ? " → " + esc(accName(s.to)) : ""}${s ? esc(fxHint(s)) : ""}</div></div>
+      <div class="r-amt"><span class="money ${s && s.t === "tr" ? "" : cls(x.v)}">${esc(money(x.v, a?.cur || B, { dec: false }))}</span>${x.first ? `<span class="row-btns">${x.kind === "sched" ? `<button class="btn sm primary" data-rec="${s.id}">Record</button><button class="btn sm" data-snz="${s.id}">+3 days</button><button class="btn sm" data-skip="${s.id}">Skip</button><button class="btn sm" data-ed="${s.id}">Edit</button>` : x.kind === "inv" ? `<button class="btn sm" data-iv="${x.acc.id}">Details</button>` : `<button class="btn sm primary" data-cpay="${x.acc.id}">Pay</button>`}</span>` : ""}</div></div>`; };
   const mrow = s => { const a = am.get(s.a), st = schedState(s);
     return `<div class="row urow"><label class="sck"><input type="checkbox" data-sel="${s.id}" ${P.sel.has(s.id) ? "checked" : ""} aria-label="Select ${esc(schedName(s))}"></label><div class="r-main"><div class="r-t"><a class="slink" data-ed="${s.id}" role="button" tabindex="0">${esc(schedName(s))}</a> ${st === "paused" ? `<span class="chg">Paused</span>` : st === "done" ? `<span class="chg">Finished</span>` : ""}</div>
       <div class="r-s">${esc(schedWhen(s))} · ${esc(a?.name || "No account")}${s.t === "tr" && s.to ? " → " + esc(accName(s.to)) : ""}${esc(fxHint(s))}${s.next ? " · next " + fmtDate(s.next) : s.last ? " · last " + fmtDate(s.last) : ""}</div></div>
@@ -5431,6 +5445,7 @@ function vUpcoming(v) {
   if ($("#bDel", v)) $("#bDel", v).onclick = () => { const l = picked(); schedConfirm(`Delete ${l.length} scheduled item${l.length === 1 ? "" : "s"}?`, "They and all their future dates will be removed. Entries you already recorded stay.", "Delete", () => { schedDelete(l.map(s => s.id)); P.sel = new Set(); rr(); toast("Deleted"); }); };
   if ($("#clrS", v)) $("#clrS", v).onclick = () => schedConfirm(`Delete all ${all.length} scheduled items?`, "Every scheduled payment, income and transfer will be removed, so you can start again. Card due dates come from the Cards page and are not affected. Entries you already recorded stay. This can’t be undone.", "Delete all", () => { schedDelete(all.map(s => s.id)); P.sel = new Set(); rr(); toast("All scheduled items deleted"); });
   $("#newS").onclick = () => schedEditor(null);
+  v.querySelectorAll("[data-iv]").forEach(b => b.onclick = () => invEditor(accMap().get(+b.dataset.iv)));
   $("#ucf", v).onclick = () => upCatDlg(items0, P); if ($("#ucfClr", v)) $("#ucfClr", v).onclick = () => { P.cf = new Set(); rr(); };
 }
 
@@ -5912,12 +5927,12 @@ function fcChanges() { const cs = fcA().cats || {}; let n = 0; const names = [];
   const nm = k => { const [cu, kd, ct] = k.split("|"); return (+ct ? catMap().get(+ct)?.name : kd === "inc" ? "Other income" : "Uncategorized") || "Category"; };
   for (const [k, o] of Object.entries(cs)) { if (!o) continue; if (k.startsWith("s:")) { const s = D().sched.find(x => x.id === +k.slice(2)); if (o.off && s) { n++; names.push((s.ds || payName(s.p) || "Scheduled item") + " left out"); } }
     else if (k.startsWith("__")) { if (o.off) { n++; names.push((k === "__xout" ? "Investing transfers" : "Currency transfers") + " left out"); } }
-    else if (o.off) { n++; names.push(nm(k) + " left out"); } else if (o.sonly) { n++; names.push(nm(k) + " from scheduled items only"); } else if (o.add) { n++; names.push(nm(k) + " added at " + (+o.amt || 0).toLocaleString()); } else if (o.amt != null) { n++; names.push(nm(k) + " at " + (+o.amt).toLocaleString()); } }
+    else if (o.off) { n++; names.push(nm(k) + " left out"); } else if (o.sonly) { n++; names.push(nm(k) + " from scheduled items only"); } else if (o.from || o.to || o.g != null || o.m12) { n++; names.push(nm(k) + " with your own timing" + (o.amt != null ? " and amount" : "")); } else if (o.add) { n++; names.push(nm(k) + " added at " + (+o.amt || 0).toLocaleString()); } else if (o.amt != null) { n++; names.push(nm(k) + " at " + (+o.amt).toLocaleString()); } }
   return { n, names }; }
 function fcMark(kind, id) { if (fcA().mode !== "custom") return ""; const cs = fcA().cats || {}, am = accMap();
   for (const [k, o] of Object.entries(cs)) { if (!o) continue; if (k.startsWith("__")) continue;
     if (k.startsWith("s:")) { const s = D().sched.find(x => x.id === +k.slice(2)); if (s && o.off && fcSchedKey(s, am)?.split("|").slice(1).join("|") === kind + "|" + id) return " ✎"; continue; }
-    const p = k.split("|"); if (p[1] === kind && p[2] === String(id) && (o.amt != null || o.add || o.sonly)) return " ✎"; } return ""; }
+    const p = k.split("|"); if (p[1] === kind && p[2] === String(id) && (o.amt != null || o.add || o.sonly || o.from || o.to || o.g != null || o.m12)) return " ✎"; } return ""; }
 function fcModeBar() { const M = fcA().mode || "mix"; const ch = fcChanges();
   return `<div class="card fmode"><div class="fm-l"><span class="muted" style="font-size:.78rem;font-weight:700">Forecast based on</span><div class="seg" role="group" aria-label="Forecast based on">${FC_MODES.map(([k, l]) => `<button data-fm="${k}" aria-pressed="${M === k}">${l}</button>`).join("")}</div></div>
     <span class="muted fm-d">${esc(FC_MODES.find(x => x[0] === M)[2])}${M === "custom" ? ` · ${ch.n ? ch.n + " change" + (ch.n === 1 ? "" : "s") + ": " + esc(ch.names.slice(0, 3).join(", ")) + (ch.n > 3 ? ` +${ch.n - 3} more` : "") : "no changes yet"}` : ""}</span><button class="btn sm ${M === "custom" ? "primary" : ""}" id="fmEdit">${icon("settings")}Choose categories</button></div>`; }
@@ -5937,24 +5952,30 @@ function fcCatsEditor() {
   const catRow = r => { const o = cs[r.key] || {}, off = !!o.off; return `<div class="fcg" data-g="${esc(r.key)}"><div class="fcr ${off ? "off" : ""}" data-k="${esc(r.key)}"><label class="tgl"><input type="checkbox" class="fck" ${off ? "" : "checked"}></label>
       <div class="fcn"><b>${esc(r.name)}${o.add ? ` <span class="pill ok">added by you</span>` : ""}</b><span class="faint">${r.cur}${r.avg > .5 ? ` · usual ${esc(money0(r.avg, r.cur))}/mo` : " · no history"}${r.items.length ? ` · scheduled ${esc(money0(r.items.reduce((s, x) => s + schedEqD(x), 0), r.cur))}/mo` : ""}</span></div>
       <span style="display:flex;gap:.3rem;align-items:center"><input type="number" class="fca" ${o.sonly ? "disabled" : ""} step="10" min="0" value="${o.amt ?? ""}" placeholder="${Math.round(r.avg) || "0"}" aria-label="Monthly amount for ${esc(r.name)}">${o.add ? `<button class="ibtn fcx" aria-label="Remove ${esc(r.name)}" title="Remove this line">✕</button>` : ""}</span></div>
-      ${r.items.length ? `<label class="fcso"><input type="checkbox" class="fcsok" ${o.sonly ? "checked" : ""}> Use only the scheduled items below, not my usual pattern</label>` : ""}${r.items.map(itemRow).join("")}</div>`; };
+      <details class="fco" data-ok="${esc(r.key)}"><summary>${o.from || o.to || o.g != null || o.m12 ? "Timing, months and growth ✎" : "Timing, months and growth"}</summary><div class="fcob"></div></details>${r.items.length ? `<label class="fcso"><input type="checkbox" class="fcsok" ${o.sonly ? "checked" : ""}> Use only the scheduled items below, not my usual pattern</label>` : ""}${r.items.map(itemRow).join("")}</div>`; };
   const sec = (kind, title) => { const l = keyList().filter(r => r.kind === kind).sort((a, b) => toBase(Math.max(b.avg, b.items.reduce((s, x) => s + schedEqD(x), 0)), b.cur) - toBase(Math.max(a.avg, a.items.reduce((s, x) => s + schedEqD(x), 0)), a.cur));
     const tops = D().cats.filter(c => c.type === kind && (!c.parent || !catMap().get(c.parent))).sort((a, b) => a.name.localeCompare(b.name));
     return `<h3 class="bhead">${title}</h3><div class="fcl">${l.map(catRow).join("") || `<div class="empty">Nothing yet</div>`}</div>
       <div class="fcadd" data-kind="${kind}"><select class="fcAC" aria-label="Category to add"><option value="">Add a ${kind === "inc" ? "income" : "spending"} line…</option>${tops.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select><select class="fcAU" aria-label="Currency">${CU.map(c => `<option>${c}</option>`).join("")}</select><input type="number" class="fcAA" min="0" step="10" placeholder="Per month" aria-label="Monthly amount"><button class="btn sm" data-fadd="${kind}">Add</button></div>`; };
   const xr = (k, n, d) => `<div class="fcr ${cs[k]?.off ? "off" : ""}" data-k="${k}"><label class="tgl"><input type="checkbox" class="fck" ${cs[k]?.off ? "" : "checked"}></label><div class="fcn"><b>${n}</b><span class="faint">${esc(d || "none")} a month, trimmed average of the last year</span></div><span></span></div>`;
   const xRows = [["__xout", "Money moved into investments, savings and lending", Object.entries(XB.out).map(([c, v]) => compact(v, c)).join(" + ")], ["__xcx", "Money moved between currencies", Object.entries(XB.cx).map(([c, v]) => `${v >= 0 ? "+" : ""}${compact(v, c)}`).join(" / ")]];
+
+  const MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const optsHTML = k => { const o = cs[k] || {}, r = keyList().find(x => x.key === k), dflt = Math.round(r?.avg || 0);
+    return `<div class="fcog"><label>From<input type="month" class="fco-f" value="${esc(o.from || "")}"></label><label>Until<input type="month" class="fco-t" value="${esc(o.to || "")}"></label><label>Growth % a year<input type="number" class="fco-g" step="0.5" value="${o.g ?? ""}" placeholder="${r?.kind === "exp" ? (A.infl || 0) : (A.incg ?? 0)}"></label></div>
+      <div class="faint" style="font-size:.76rem;margin:.4rem 0 .2rem">Amount for each calendar month (blank uses the figure above)</div><div class="fcom">${MN.map((n, i) => `<label>${n}<input type="number" class="fco-m" data-mi="${i}" step="10" min="0" value="${o.m12?.[i] ?? ""}" placeholder="${o.amt ?? dflt}"></label>`).join("")}</div>
+      <div class="faint" style="font-size:.76rem;margin-top:.3rem">"From" and "Until" limit when this line applies. Scheduled items keep their own dates.</div>`; };
   const html = () => `${sec("inc", "Income")}${sec("exp", "Spending")}<h3 class="bhead">Regular transfers</h3><div class="fcl">${xRows.map(r => xr(...r)).join("")}${trs.length ? `<div class="faint" style="padding:.5rem .3rem 0;font-size:.78rem">Scheduled transfers</div>${trs.map(itemRow).join("")}` : ""}</div>`;
   modal(`<div class="m-head"><h2>Choose what the forecast uses</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <p class="muted" style="margin:0;font-size:.85rem">Untick a category to leave it out, including its scheduled items from Upcoming. Type an amount to use a fixed monthly figure instead of your usual pattern.</p><details style="margin:.3rem 0 .2rem"><summary class="muted" style="font-size:.82rem;cursor:pointer">How this works</summary><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">Under each category are its scheduled items from Upcoming, each with its own tick. Ticked scheduled items still land on their dates and count towards a fixed amount. If you untick only a scheduled item, your usual pattern for that category fills in instead; untick the category to remove it completely. Use <b>Add a line</b> for something you expect that has no history yet.</p></details>
     <div class="fcsum" id="fcsum"></div><div id="fcBody">${html()}</div>
     <div class="m-foot"><div style="display:flex;gap:.4rem;flex-wrap:wrap"><button class="btn ghost" id="fcRst">Reset all</button><button class="btn ghost" id="fcSo" title="For every category that has scheduled items in Upcoming, ignore your usual pattern and use only those items">Scheduled items only</button></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="fcSv">Use my categories</button></div></div>`,
   (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); const body = $("#fcBody", m);
-    const clean = () => { for (const k of Object.keys(cs)) { const o = cs[k]; if (!o || (!o.off && o.amt == null && !o.add && !o.sonly)) delete cs[k]; } };
+    const clean = () => { for (const k of Object.keys(cs)) { const o = cs[k]; if (o && o.m12 && !o.m12.some(x => x != null && x !== "")) delete o.m12; if (o) for (const f of ["from", "to"]) if (!o[f]) delete o[f]; if (o && (o.g == null || o.g === "")) delete o.g; if (!o || (!o.off && o.amt == null && !o.add && !o.sonly && !o.from && !o.to && o.g == null && !o.m12)) delete cs[k]; } };
     const catOff = k => !!cs[k]?.off;
     const sum = () => { clean(); let i = 0, e = 0, i0 = 0, e0 = 0;
       for (const r of keyList()) { const u = toBase(r.avg, r.cur), o = cs[r.key] || {}; const se = r.items.filter(s => !cs["s:" + s.id]?.off).reduce((s, x) => s + schedEqD(x), 0);
-        const v = o.off ? 0 : o.sonly ? toBase(se, r.cur) : toBase(Math.max(o.amt != null ? +o.amt : r.avg, se), r.cur); const v0 = toBase(Math.max(r.avg, r.items.reduce((s, x) => s + schedEqD(x), 0)), r.cur);
+        const own = o.amt != null ? +o.amt : r.avg, mAvg = o.m12 ? o.m12.reduce((s, x) => s + (x != null && x !== "" ? +x : own), 0) / 12 : own; const v = o.off ? 0 : o.sonly ? toBase(se, r.cur) : toBase(Math.max(mAvg, se), r.cur); const v0 = toBase(Math.max(r.avg, r.items.reduce((s, x) => s + schedEqD(x), 0)), r.cur);
         if (r.kind === "inc") { i += v; i0 += v0; } else { e += v; e0 += v0; } }
       const n = Object.keys(cs).length;
       $("#fcsum", m).innerHTML = `<div><span class="muted">Income a month</span><b class="money">${esc(compact(i, B))}</b><span class="muted">usual ${esc(compact(i0, B))}</span></div><div><span class="muted">Spending a month</span><b class="money">${esc(compact(e, B))}</b><span class="muted">usual ${esc(compact(e0, B))}</span></div><div><span class="muted">Left over</span><b class="money ${cls(i - e)}">${esc(compact(i - e, B))}</b><span class="muted">${n ? n + " change" + (n === 1 ? "" : "s") : "no changes"}</span></div>`; };
@@ -5962,7 +5983,12 @@ function fcCatsEditor() {
     body.addEventListener("change", ev => { const t = ev.target; if (t.classList.contains("fcsok")) { const g = t.closest(".fcg"), k2 = g.dataset.g, o = cs[k2] ||= {}; if (t.checked) o.sonly = true; else delete o.sonly; const a = g.querySelector(".fca"); if (a) a.disabled = t.checked; sum(); return; } const r = t.closest("[data-k]"); if (!r) return; const k = r.dataset.k;
       if (t.classList.contains("fck")) { const o = cs[k] ||= {}; if (!t.checked) o.off = true; else delete o.off; r.classList.toggle("off", !t.checked); const g = r.closest(".fcg"); if (g) g.querySelectorAll(".fcs").forEach(x => x.classList.toggle("off", !t.checked || !x.querySelector(".fcsk").checked)); sum(); }
       else if (t.classList.contains("fcsk")) { const o = cs[k] ||= {}; if (!t.checked) o.off = true; else delete o.off; r.classList.toggle("off", !t.checked); sum(); } });
-    body.addEventListener("input", ev => { const t = ev.target; if (!t.classList.contains("fca")) return; const r = t.closest("[data-k]"), k = r.dataset.k, o = cs[k] ||= {}; if (t.value === "") delete o.amt; else o.amt = Math.max(0, +t.value); sum(); });
+    body.addEventListener("toggle", ev => { const d = ev.target; if (d.classList?.contains("fco") && d.open) { const b = d.querySelector(".fcob"); if (!b.dataset.f) { b.dataset.f = 1; b.innerHTML = optsHTML(d.dataset.ok); } } }, true);
+    body.addEventListener("input", ev => { const t = ev.target; const cl = t.classList; if (cl.contains("fco-f") || cl.contains("fco-t") || cl.contains("fco-g") || cl.contains("fco-m")) { const k = t.closest(".fco").dataset.ok, o = cs[k] ||= {};
+        if (cl.contains("fco-f")) o.from = t.value; else if (cl.contains("fco-t")) o.to = t.value; else if (cl.contains("fco-g")) { if (t.value === "") delete o.g; else o.g = +t.value; }
+        else { const arr = o.m12 ||= new Array(12).fill(null); arr[+t.dataset.mi] = t.value === "" ? null : Math.max(0, +t.value); }
+        sum(); return; }
+      if (!t.classList.contains("fca")) return; const r = t.closest("[data-k]"), k = r.dataset.k, o = cs[k] ||= {}; if (t.value === "") delete o.amt; else o.amt = Math.max(0, +t.value); sum(); });
     body.addEventListener("click", ev => { const t = ev.target.closest("button"); if (!t) return;
       if (t.classList.contains("fcx")) { const k = t.closest("[data-k]").dataset.k; delete cs[k]; redraw(); return; }
       if (t.dataset.fadd) { const w = t.closest(".fcadd"), kind = w.dataset.kind, ct = +$(".fcAC", w).value, cu = $(".fcAU", w).value, amt = +$(".fcAA", w).value;
@@ -5996,6 +6022,66 @@ function upCatDlg(items, P) {
     $("#ufAll", m).onclick = () => { cks().forEach(c => c.checked = true); upd(); }; $("#ufNone", m).onclick = () => { cks().forEach(c => c.checked = false); upd(); };
     $("#ufGo", m).onclick = () => { P.cf = new Set(cks().filter(c => !c.checked).map(c => c.dataset.k)); close(); renderApp(); }; });
 }
+
+/* ---- investments: premiums and maturities feed Upcoming and the Forecast ---- */
+function invRoll(d, step) { const now = todayISO(); let n = 0; while (d < now && n++ < 600) d = addMonths(d, step); return d; }
+function invBank(a) { const l = D().accounts.filter(x => kindOf(x) === "bank" && !x.archived && x.cur === a.cur).sort((x, y) => bal(y.id) - bal(x.id)); return l[0]?.id || null; }
+function invSched() {
+  const out = [], now = todayISO(), S = D().sched || [];
+  for (const a of D().accounts) { if (kindOf(a) !== "investment" || a.archived || !a.inv) continue; const i = a.inv;
+    if (i.premium > 0 && i.nextPrem && !S.some(s => s.t === "tr" && !s.off && s.to === a.id)) { const from = i.payFrom || invBank(a), step = 12 / (i.freq || 1), first = invRoll(i.nextPrem, step);
+      if (from && !(i.maturity && first > i.maturity)) out.push({ id: "iv:" + a.id + ":p", t: "tr", ds: "Premium · " + a.name, v: -i.premium, next: first, every: step, unit: "month", repeat: true, a: from, to: a.id, end: i.maturity || "", ded: true, virtual: true, iacc: a.id, when: "Premium due" }); }
+    if (i.maturity && i.maturity >= now && !S.some(s => s.t === "tr" && !s.off && s.a === a.id)) { const to = i.payTo || invBank(a);
+      if (to && i.matValue > 0) out.push({ id: "iv:" + a.id + ":m", t: "tr", ds: "Matures · " + a.name, v: -i.matValue, next: i.maturity, every: 1, unit: "month", repeat: false, a: a.id, to, virtual: true, iacc: a.id, when: "Matures" }); } }
+  return out;
+}
+(function () { const prev = upcomingItems;
+  upcomingItems = function (days = 120) { const items = prev(days), now = todayISO(), end = addMonths(now, Math.ceil(days / 30)), am = accMap();
+    for (const s of invSched()) { const acc = am.get(s.iacc); schedOcc(s, "0000-01-01", end).slice(0, 40).forEach((d, i) => items.push({ kind: "inv", s: null, acc, d, v: s.id.endsWith(":m") ? -s.v : s.v, a: acc.id, label: s.ds, when: s.when, first: i === 0 })); }
+    return items.sort((x, y) => x.d < y.d ? -1 : x.d > y.d ? 1 : 0); };
+})();
+(function () { const prev = upCatKey; upCatKey = function (x) { return x.kind === "inv" ? "__tr" : prev(x); }; })();
+
+/* ---- Appearance: date style ---- */
+(function () { const prev = vAppearance;
+  vAppearance = function (v) { prev(v); const g = v.querySelector("section.grid"), rst = v.querySelector("#resetLook")?.closest(".card"); if (!g) return;
+    const c = document.createElement("div"); c.className = "card span-6"; const cur = reg().date || "dmy";
+    c.innerHTML = `<div class="card-h"><h2>Dates</h2></div><div class="form"><label>Show dates as<select id="apDate">${DATE_FORMATS.map(f => `<option value="${f[0]}" ${cur === f[0] ? "selected" : ""}>${esc(f[1])}</option>`).join("")}</select></label></div><p class="muted" style="margin:.6rem 0 0;font-size:.85rem">Example: <b id="apEx">${esc(fmtDate("2026-12-31"))}</b>. Month names across the app follow this too. Also in Settings → Region.</p>`;
+    g.insertBefore(c, rst || null);
+    $("#apDate", v).onchange = e => { D().settings.region = { ...reg(), date: e.target.value }; _regKey = ""; changed(); renderApp(); }; };
+})();
+
+/* ---- Budgets: visible edit and delete ---- */
+function budDelOne(b) { schedConfirm("Delete this limit?", `The ${esc(bcats(b).map(c => catMap().get(c)?.name).filter(Boolean).join(", ") || "category")} limit will be removed. Your entries are not affected.`, "Delete", () => { D().budgets = D().budgets.filter(x => x !== b); tomb("budget", b.id); changed(); renderApp(); toast("Limit deleted"); }); }
+(function () { const prev = vBudgets;
+  vBudgets = function (v) { prev(v); const P = S2.pb || {};
+    v.querySelectorAll(".bc[data-b]").forEach(c => { const b = D().budgets.find(x => x.id === +c.dataset.b); if (!b) return; const r = document.createElement("div"); r.className = "row-btns"; r.style.cssText = "margin-top:.5rem";
+      r.innerHTML = `<button class="btn sm" data-be>Edit</button><button class="btn sm danger" data-bx>Delete</button>`; (c.querySelector(".bcm") || c).appendChild(r);
+      r.querySelector("[data-be]").onclick = e => { e.stopPropagation(); budgetEditor(b); }; r.querySelector("[data-bx]").onclick = e => { e.stopPropagation(); budDelOne(b); }; });
+    const bar = v.querySelector(".plans"); if (!bar) return; const pid = P.plan || 0, n = (D().budgets || []).filter(b => (b.plan || 0) === pid).length;
+    const mk = (id, label, cls, fn) => { const b = document.createElement("button"); b.className = "btn sm " + cls; b.id = id; b.textContent = label; b.onclick = fn; const t = bar.querySelector(".plans-n"); bar.insertBefore(b, t); };
+    if (pid) mk("planDel", "Delete budget", "danger", () => { const pl = planOf(pid); schedConfirm(`Delete “${esc(pl.name)}”?`, `Its ${n} category limit${n === 1 ? "" : "s"} will be removed too. Your entries are not affected.`, "Delete", () => { for (const b of D().budgets.filter(b => (b.plan || 0) === pid)) tomb("budget", b.id); D().budgets = D().budgets.filter(b => (b.plan || 0) !== pid); D().budgetPlans = D().budgetPlans.filter(p => p.id !== pid); tomb("budgetplan", pid); P.plan = 0; changed(); renderApp(); toast("Budget deleted"); }); });
+    else if (n) mk("planClr", "Clear all limits", "danger", () => schedConfirm("Clear all limits?", `All ${n} category limit${n === 1 ? "" : "s"} in the Main budget will be removed. Your entries are not affected.`, "Clear all", () => { for (const b of D().budgets.filter(b => (b.plan || 0) === 0)) tomb("budget", b.id); D().budgets = D().budgets.filter(b => (b.plan || 0) !== 0); changed(); renderApp(); toast("Limits cleared"); }));
+  };
+})();
+
+/* ---- collapsible sidebar groups ---- */
+(function () { const prev = renderApp;
+  const load = () => { try { return JSON.parse(localStorage.getItem("ml_navfold") || "null"); } catch (e) { return null; } };
+  const save = o => { try { localStorage.setItem("ml_navfold", JSON.stringify(o)); } catch (e) {} };
+  renderApp = function () { const r = prev.apply(this, arguments); try {
+    const nav = document.querySelector(".nav"); if (!nav || nav.dataset.fold) return r; nav.dataset.fold = "1";
+    const kids = [...nav.children], groups = []; let cur = { title: "Main", head: null, items: [] }; groups.push(cur);
+    for (const k of kids) { if (k.classList.contains("nav-sec")) { cur = { title: k.textContent.trim(), head: k, items: [] }; groups.push(cur); } else cur.items.push(k); }
+    const st = load() || {}, active = nav.querySelector("[aria-current=page]");
+    groups.forEach((g, gi) => { if (!g.items.length) return; const box = document.createElement("div"); box.className = "nav-grp"; g.items[0].before(box); g.items.forEach(i => box.appendChild(i));
+      const has = active && g.items.includes(active), open = has || (st[g.title] != null ? st[g.title] : gi <= 2);
+      box.hidden = !open;
+      if (g.head) { g.head.classList.add("nav-fold"); g.head.setAttribute("role", "button"); g.head.tabIndex = 0; g.head.dataset.open = open ? "1" : "0"; g.head.after(box);
+        const tog = () => { const o = box.hidden; box.hidden = !o; g.head.dataset.open = o ? "1" : "0"; const s = load() || {}; s[g.title] = o; save(s); };
+        g.head.onclick = tog; g.head.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tog(); } }; } });
+  } catch (e) {} return r; };
+})();
 
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
