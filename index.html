@@ -238,7 +238,8 @@ body.fx-off .gbody,body.fx-off .g-chev,body.fx-off .gface{transition:none}body.f
 body.fx-full .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.2s .15s cubic-bezier(.4,.1,.2,1) forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 .donut-wrap{display:grid;grid-template-columns:minmax(0,10rem) minmax(0,1fr);gap:1.25rem;align-items:center}
-.dleg{display:flex;flex-direction:column;gap:.35rem;font-size:.82rem}
+.donut-wrap>svg{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:1/1;min-width:0;overflow:visible}
+.dleg{display:flex;flex-direction:column;gap:.35rem;font-size:.82rem;min-width:0}
 .dleg div{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.55rem;align-items:center;padding:.2rem .3rem;border-radius:.5rem;cursor:default}
 .dleg div:hover,.dleg div.on{background:var(--surface2)}
 .dleg i{width:.7rem;height:.7rem;border-radius:.2rem}
