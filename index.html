@@ -238,8 +238,7 @@ body.fx-off .gbody,body.fx-off .g-chev,body.fx-off .gface{transition:none}body.f
 body.fx-full .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.2s .15s cubic-bezier(.4,.1,.2,1) forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 .donut-wrap{display:grid;grid-template-columns:minmax(0,10rem) minmax(0,1fr);gap:1.25rem;align-items:center}
-.donut-wrap>svg{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:1/1;min-width:0;overflow:visible}
-.dleg{display:flex;flex-direction:column;gap:.35rem;font-size:.82rem;min-width:0}
+.dleg{display:flex;flex-direction:column;gap:.35rem;font-size:.82rem}
 .dleg div{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.55rem;align-items:center;padding:.2rem .3rem;border-radius:.5rem;cursor:default}
 .dleg div:hover,.dleg div.on{background:var(--surface2)}
 .dleg i{width:.7rem;height:.7rem;border-radius:.2rem}
@@ -600,6 +599,9 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
   .toolbar>*{min-width:0}
   .tbl,.scrollx{-webkit-overflow-scrolling:touch}
 }
+.hcs-s{margin-left:.5rem;vertical-align:middle;font-size:.7rem}.hcs-s button{padding:.15rem .45rem;font-size:.7rem;min-height:0!important}.tile .t-lab{flex-wrap:wrap}.tile .hcs-s{margin-left:auto}.hero:not(.gold-hero) .hcs-s{background:rgba(255,255,255,.18)}
+.tile .hcseg{background:var(--surface2)}.tile .hcseg button{color:var(--muted)}.tile .hcseg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--e1)}
+.hero .delta{white-space:nowrap}.hero .lab{flex-wrap:wrap}
 </style>
 
 <div id="root"></div>
@@ -1216,7 +1218,7 @@ function donut(el, items, cur, centerLabel) { if (!el || !el.isConnected) return
 }
 function moneyBar(el, inc, exp, ids, from, to, cur) { if (!el || !el.isConnected) return;
   const ti = [...inc.values()].reduce((s, v) => s + v, 0), l = [...exp.entries()].filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]); const te = l.reduce((s, e) => s + e[1], 0);
-  if (!ti && !te) { el.innerHTML = `<div class="empty">No income or spending in the last 12 months</div>`; return; }
+  if (!ti && !te) { el.innerHTML = `<div class="empty">No income or spending in this period</div>`; return; }
   const head = l.slice(0, 7).map(([k, v], i) => ({ k, v, id: ids.get(k), c: `var(--c${(i % 8) + 1})` })); const rest = l.slice(7); if (rest.length) head.push({ k: "Everything else", v: rest.reduce((s, e) => s + e[1], 0), ids: rest.map(e => ids.get(e[0])), c: "var(--faint)" });
   const kept = ti - te, whole = Math.max(ti, te) || 1; if (kept > 0) head.push({ k: "Kept (saved)", v: kept, c: "var(--pos)", saved: true });
   const pc = v => ti > 0 ? (v / ti * 100) : 0; const pf = v => { const p = pc(v); return p >= 10 ? p.toFixed(0) + "%" : p.toFixed(1) + "%"; };
@@ -4515,7 +4517,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-10 · 0abb2e"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-10 · 8e81f0"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -6106,6 +6108,27 @@ function budDelOne(b) { schedConfirm("Delete this limit?", `The ${esc(bcats(b).m
   } catch (e) {} return r; };
 })();
 
+/* ---- Home: per-card currency toggles ---- */
+(function () { const prev = vHome;
+  vHome = function (v) { prev(v); try {
+    const B = base(), cs = usedCurs(); if (cs.length < 2) return; const sm = summary(), H = PREF.hc || (PREF.hc = {});
+    const pick = k => cs.includes(H[k]) ? H[k] : B;
+    const seg = (k, cur) => `<span class="hcseg hcs-s" role="group" aria-label="Show in" data-hk="${k}">${cs.map(c => `<button data-hc="${c}" aria-pressed="${c === cur}">${c}</button>`).join("")}</span>`;
+    const wire = (root, k) => root.querySelectorAll("[data-hk='" + k + "'] [data-hc]").forEach(b => b.onclick = e => { e.stopPropagation(); H[k] = b.dataset.hc; savePrefs(); renderApp(); });
+    const hero = v.querySelector(".hero:not(.gold-hero)");
+    if (hero) { const c = pick("nw"), conv = x => fromTo(x, B, c), lab = hero.querySelector(".lab"), big = hero.querySelector(".big");
+      const top = hero.firstElementChild; if (top) top.querySelector(".lab").insertAdjacentHTML("beforeend", " " + seg("nw", c));
+      if (big) { big.dataset.count = conv(sm.nw); big.dataset.cur = c; big.textContent = money(conv(sm.nw), c, { dec: false }); }
+      const bs = hero.querySelectorAll("span b.money"); bs.forEach(b => { const t = b.parentElement.textContent.trim(); if (t.startsWith("Assets")) b.textContent = compact(conv(sm.assets), c); else if (t.startsWith("Liabilities")) b.textContent = compact(conv(sm.liab), c); });
+      const d = hero.querySelector(".delta .money"); if (d) { const nw30 = nwAt(addMonths(todayISO(), -1)); d.textContent = compact(conv(Math.abs(sm.nw - nw30)), c); }
+      wire(hero, "nw"); }
+    const map = { gold: ["gold", sm.gold], investments: ["inv", sm.inv - sm.gold], loans: ["owe", sm.owe], people: ["owed", sm.owed] };
+    v.querySelectorAll(".tile[data-go]").forEach(t => { const m = map[t.dataset.go]; if (!m) return; const [k, val] = m, c = pick(k), cv = fromTo(val, B, c);
+      t.querySelector(".t-lab").insertAdjacentHTML("beforeend", seg(k, c)); const tv = t.querySelector(".t-val"); tv.dataset.count = cv; tv.dataset.cur = c; tv.textContent = compact(cv, c);
+      const o = cs.filter(x => x !== c).map(x => "≈ " + compact(fromTo(val, B, x), x)).join(" · "); t.querySelector(".t-sub").insertAdjacentHTML("afterend", `<div class="t-sub money" style="opacity:.8">${esc(o)}</div>`); wire(t, k); });
+  } catch (e) { console.error(e); } };
+})();
+
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
 const isInterest = c => { if (!c) return false; const cc = catMap().get(c); const tc = topCat(c); return /interest|finance cost|bank charge|late fee|annual fee/i.test((cc?.name || "") + " " + (tc?.name || "")); };
@@ -6135,9 +6158,9 @@ function drawInsights(B, sm) {
     divergingArea($("#ad"), pts, B); }
 
   // who you owe
-  { const debts = D().accounts.map(a => ({ a, v: toBase(bal(a.id), a.cur) })).filter(x => x.v < -1 && DEBT.has(kindOf(x.a))).sort((x, y) => x.v - y.v); const mx = Math.abs(debts[0]?.v || 1);
+  { const debts = D().accounts.map(a => ({ a, v: toBase(bal(a.id), a.cur), nv: bal(a.id) })).filter(x => x.v < -1 && DEBT.has(kindOf(x.a))).sort((x, y) => x.v - y.v); const mx = Math.abs(debts[0]?.v || 1);
     $("#owNote").textContent = `Interest and fees ${compact(int12, B)} in 12 months`;
-    $("#owe").innerHTML = debts.slice(0, 7).map(x => { const k = kindOf(x.a); return `<div class="obar"><span class="n">${esc(x.a.name)}</span><b class="money neg">${esc(compact(x.v, B))}</b><span class="tr"><i style="width:${(Math.abs(x.v) / mx * 100).toFixed(1)}%;background:${k === "card" ? "var(--c2)" : k === "loan" ? "var(--c8)" : "var(--c5)"}"></i></span></div>`; }).join("") +
+    $("#owe").innerHTML = debts.slice(0, 7).map(x => { const k = kindOf(x.a); return `<div class="obar"><span class="n">${esc(x.a.name)}</span><b class="money neg">${esc(compact(x.nv, x.a.cur))}</b><span class="tr"><i style="width:${(Math.abs(x.v) / mx * 100).toFixed(1)}%;background:${k === "card" ? "var(--c2)" : k === "loan" ? "var(--c8)" : "var(--c5)"}"></i></span></div>`; }).join("") +
       `<div class="legend" style="margin-top:.6rem"><span><i style="background:var(--c8)"></i>Loans</span><span><i style="background:var(--c2)"></i>Cards</span><span><i style="background:var(--c5)"></i>People</span></div>`; }
 
   // spending vs usual (last complete month vs prior 12-month average)
@@ -6339,7 +6362,7 @@ function vHome(v) {
     <div class="card span-8"><div class="card-h"><h2>What you own and what you owe</h2><span class="note">Month-end, last 24 months</span></div><div class="chart" id="ad"></div></div>
     <div class="card span-4"><div class="card-h"><h2>Who you owe</h2><span class="note" id="owNote"></span></div><div id="owe"></div></div>
 
-    <div class="card span-8"><div class="card-h"><h2>Where money went</h2><span class="note">Last 12 months · tap a category to see its entries</span></div><div class="chart" id="sk"></div></div>
+    <div class="card span-8"><div class="card-h"><h2>Where money went</h2><div class="seg" role="group" aria-label="Period">${[["wk", "This week"], ["mo", "This month"], ["ytd", "YTD"], ["12", "12 months"]].map(([k, l]) => `<button data-wm="${k}" aria-pressed="${(S2.wm || "12") === k}">${l}</button>`).join("")}</div></div><p class="note" id="skNote" style="margin:-.3rem 0 .6rem"></p><div class="chart" id="sk"></div></div>
     <div class="card span-4"><div class="card-h"><h2>What you own</h2><span class="note">By type</span></div><div id="mix"></div></div>
 
     <div class="card span-6"><div class="card-h"><h2>Spending against your usual</h2><span class="note" id="dbNote"></span></div><div class="chart" id="db"></div></div>
@@ -6358,9 +6381,12 @@ function vHome(v) {
   requestAnimationFrame(() => {
     drawNW();
     // where money went: income split into spending categories and what was kept
-    const from = addMonths(now, -12); const inc = new Map(), exp = new Map(), ids = new Map();
-    eachFlow(from, now, (k, c, val) => { const tc = c ? topCat(c) : null; const name = tc ? tc.name : (k === "inc" ? "Other income" : "Uncategorized"); const m = k === "inc" ? inc : exp; m.set(name, (m.get(name) || 0) + val); if (k === "exp") ids.set(name, tc ? tc.id : 0); });
-    moneyBar($("#sk"), inc, exp, ids, from, now, B);
+    const drawSK = () => { const w = S2.wm || "12"; let from; if (w === "wk") { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); from = isoLocal(d); } else if (w === "mo") from = now.slice(0, 7) + "-01"; else if (w === "ytd") from = now.slice(0, 4) + "-01-01"; else from = addMonths(now, -12);
+      const inc = new Map(), exp = new Map(), ids = new Map();
+      eachFlow(from, now, (k, c, val) => { const tc = c ? topCat(c) : null; const name = tc ? tc.name : (k === "inc" ? "Other income" : "Uncategorized"); const m = k === "inc" ? inc : exp; m.set(name, (m.get(name) || 0) + val); if (k === "exp") ids.set(name, tc ? tc.id : 0); });
+      const el = $("#skNote"); if (el) el.textContent = ({ wk: "Since Monday", mo: "Since " + fmtDate(from), ytd: "Since 1 Jan " + now.slice(0, 4), 12: "Last 12 months" })[w] + " · tap a category to see its entries";
+      moneyBar($("#sk"), inc, exp, ids, from, now, B); v.querySelectorAll("[data-wm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.wm === w)); };
+    v.querySelectorAll("[data-wm]").forEach(b => b.onclick = () => { S2.wm = b.dataset.wm; drawSK(); }); drawSK();
     const mix = Object.entries(sm.cls).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ k, v })); donut($("#mix"), mix, B, "Total assets");
     barsChart($("#flow"), monthlyFlows(12), B);
     const days = new Map(); eachFlow(addMonths(now, -13), now, (k, c, val, t) => { if (k === "exp") days.set(t.d, (days.get(t.d) || 0) + val); }); heatmap($("#hm"), days, B); if (!$("#hm")) return; const wk = Math.max(18, Math.min(53, Math.floor(($("#hm").clientWidth - 26) / 21))); $("#hmNote").textContent = wk >= 50 ? "Last 12 months" : "Last " + Math.round(wk / 4.35) + " months";
