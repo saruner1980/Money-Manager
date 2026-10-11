@@ -606,6 +606,21 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 .donut-wrap .dleg{position:static;min-width:0;width:100%}
 @media (max-width:760px){.donut-wrap{grid-template-columns:minmax(0,1fr)!important;justify-items:center;gap:1rem!important}.donut-wrap .dleg{justify-self:stretch}}
 @container (max-width:26rem){.donut-wrap{grid-template-columns:minmax(0,1fr)!important;gap:1rem!important}}
+
+/* ---- compact credit-card style group and collection cards ---- */
+.gface.plastic{min-height:0!important;padding:.8rem 1rem .85rem;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"top top" "tot cnt" "chips cnt";align-items:end;gap:.3rem .8rem;border-radius:1.1rem}
+.gface .pl-top{grid-area:top;align-items:center}.gface .g-ic{width:1.9rem;height:1.9rem;border-radius:.6rem}.gface .g-ic svg{width:1rem;height:1rem}
+.gface .pl-top b{font-size:1.02rem}
+.gface .g-edit{width:1.8rem;height:1.8rem;border-radius:.6rem;background:rgba(255,255,255,.14)}.gface .g-edit svg{width:.95rem;height:.95rem}
+.gface .g-tot{grid-area:tot;font-size:1.3rem;line-height:1.1;margin:0}
+.gface .gchips{grid-area:chips;display:flex;gap:.2rem .7rem;flex-wrap:wrap;margin:0;font-size:.74rem;opacity:.92}
+.gface .gchip{background:none!important;box-shadow:none!important;padding:0!important;border:0!important;color:inherit!important;font-size:.74rem}.gface .gchip em{font-style:normal;opacity:.75}
+.gface .pl-bot{grid-area:cnt;display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:.5rem;font-size:.78rem;align-self:end}
+.gface .g-cur{display:none}.g-chev{width:1.5rem;height:1.5rem}
+.gadd{min-height:4.6rem}
+.ggrid{gap:.75rem}
+.sw.auto{display:grid;place-items:center;font-size:.7rem;font-weight:800;color:var(--muted);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+@media (max-width:760px){.ggrid{gap:.65rem}.gface .g-tot{font-size:1.2rem}}
 </style>
 
 <div id="root"></div>
@@ -1692,6 +1707,8 @@ function flip(root, change) { const els = [...root.querySelectorAll(".gcard")]; 
   const first = new Map(els.map(e => [e, e.getBoundingClientRect()])); change();
   for (const e of els) { const a = first.get(e), b = e.getBoundingClientRect(); const dx = a.left - b.left, dy = a.top - b.top; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue; e.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" }); } }
 const GRP_COL = ["var(--c1)", "var(--c3)", "var(--c7)", "var(--c2)", "var(--c5)", "var(--c4)", "var(--c8)", "var(--c6)"];
+const PAL = [["Ocean", "var(--c1)"], ["Emerald", "var(--c3)"], ["Violet", "var(--c7)"], ["Sunset", "var(--c2)"], ["Rose", "var(--c5)"], ["Amber", "var(--c4)"], ["Crimson", "var(--c8)"], ["Forest", "var(--c6)"], ["Navy", "#1e3a8a"], ["Teal", "#0f766e"], ["Indigo", "#4338ca"], ["Plum", "#86198f"], ["Berry", "#be185d"], ["Copper", "#b45309"], ["Olive", "#4d7c0f"], ["Graphite", "#374151"], ["Slate", "#475569"], ["Midnight", "#0f172a"]];
+const palSw = (col, auto) => `<div class="swrow">${auto ? `<button type="button" class="sw auto ${col ? "" : "on"}" data-col="" aria-label="Automatic" title="Automatic">A</button>` : ""}${PAL.map(([n, c]) => `<button type="button" class="sw ${c === col ? "on" : ""}" data-col="${c}" style="--g:${c}" aria-label="${n}" title="${n}"></button>`).join("")}</div>`;
 const GRP_IC = ["wallet", "card", "gold", "invest", "building", "loan", "people", "home", "globe", "target"];
 function grpLook(g, i) { const n = (g.name || "").toLowerCase(); const ic = g.ic || (/card/.test(n) ? "card" : /insur/.test(n) ? "target" : /loan|owe|debt/.test(n) ? "loan" : /gold/.test(n) ? "gold" : /invest|policy|lic|nps/.test(n) ? "invest" : /propert|flat|house/.test(n) ? "building" : /india|uae|dubai|kerala/.test(n) ? "globe" : "wallet"); return { col: g.col || GRP_COL[i % GRP_COL.length], ic }; }
 function vAccounts(v) {
@@ -1739,7 +1756,7 @@ function groupEditor(g) {
   modal(`<div class="m-head"><h2>${isNew ? "New group" : "Edit group"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <div class="plastic gprev" id="gpv" style="--g:${col}"><div class="pl-top"><span class="g-ic">${icon(ic, 2)}</span><b id="gpn">${esc(g?.name || "New group")}</b></div><div class="pl-bot"><span>${cnt} accounts</span></div></div>
     <form class="form" novalidate><label class="full">Name<input type="text" id="gnm" value="${esc(g?.name || "")}" placeholder="e.g. Kerala, Savings, Wife's accounts"></label>
-      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Colour</div><div class="swrow">${GRP_COL.map(c => `<button type="button" class="sw ${c === col ? "on" : ""}" data-col="${c}" style="--g:${c}" aria-label="Colour"></button>`).join("")}</div></div>
+      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Colour</div>${palSw(col)}</div>
       <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Icon</div><div class="swrow">${GRP_IC.map(k => `<button type="button" class="icb ${k === ic ? "on" : ""}" data-ic="${k}" aria-label="${k}">${icon(k)}</button>`).join("")}</div></div>
       ${g && !g.id ? "" : curPickHTML(new Set())}
       ${isNew ? `<div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Accounts in this group</div><div class="fs" style="max-height:11rem">${D().accounts.filter(a => !a.archived).sort((a, b) => a.name.localeCompare(b.name)).map(a => `<label class="tgl"><input type="checkbox" value="${a.id}"> ${esc(a.name)} <span class="faint">${esc(D().groups.find(x => x.id === a.group)?.name || "")}</span></label>`).join("")}</div></div>` : `<div class="full" style="display:flex;gap:.5rem;flex-wrap:wrap"><button type="button" class="btn sm" id="gUp" ${idx === 0 ? "disabled" : ""}>Move up</button><button type="button" class="btn sm" id="gDn" ${idx === gs.length - 1 ? "disabled" : ""}>Move down</button></div>`}</form>
@@ -1870,7 +1887,7 @@ function vCards(v) {
   const grad = ["var(--c1)", "var(--c7)", "var(--c2)", "var(--c3)", "var(--c5)", "var(--c4)"];
   v.innerHTML = `${topbar("Cards", `${active.length} active · ${esc(compact(tot, base()))} owed${lim ? ` of ${esc(compact(lim, base()))} total limit` : ""}`, addBtn("Add card spend", `data-type="exp"`))}
     <section class="grid">${active.length ? cardsStrip(active) : ""}${active.map((a, i) => { const c = cardInfo(a);
-      return `<div class="card span-6 ccard hov" data-acc="${a.id}"><div class="plastic" style="--g:${grad[i % grad.length]}"><div class="pl-top"><b>${esc(a.name)}</b><span>${icon("card")}</span></div>
+      return `<div class="card span-6 ccard hov" data-acc="${a.id}"><div class="plastic" style="--g:${a.card?.col || grad[i % grad.length]}"><div class="pl-top"><b>${esc(a.name)}</b><span>${icon("card")}</span></div>
           <div class="pl-num money">•••• ${esc(a.last4 || a.card?.last4 || "····")}</div><div class="pl-bot"><span>Owed <b class="money">${esc(money(c.owed, a.cur))}</b></span>${c.avail != null ? `<span>Available <b class="money">${esc(compact(c.avail, a.cur))}</b></span>` : ""}</div></div>
         ${cardFig(a)}
         <div class="kv">${c.due ? `<span>Payment due</span><b class="${c.due < now ? "neg" : ""}">${fmtDate(c.due)}</b>` : ""}${c.lastStmt ? `<span>Statement balance</span><b class="money">${esc(money(Math.max(0, -c.stmtBal), a.cur))}</b><span>Spent this cycle</span><b class="money">${esc(money(c.cycleSpend, a.cur))}</b><span>Last cycle</span><b class="money">${esc(money(c.prevSpend, a.cur))}</b><span>Next statement</span><b>${fmtDate(c.nextStmt)}</b>` : `<span>Spent last 30 days</span><b class="money">${esc(money(c.cycleSpend, a.cur))}</b>`}</div>
@@ -1884,10 +1901,12 @@ function cardSettings(a) {
   const c = a.card || {};
   modal(`<div class="m-head"><h2>${esc(a.name)}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <form class="form" novalidate><label>Credit limit (${a.cur})<input type="number" id="cl" step="1" value="${c.limit || a.limit || ""}"></label><label>Last 4 digits<input type="text" id="c4" maxlength="4" inputmode="numeric" value="${esc(a.last4 || c.last4 || "")}"></label>
-      <label>Statement day of month<input type="number" id="csd" min="1" max="28" value="${c.stmtDay || ""}"></label><label>Payment due day of month<input type="number" id="cdd" min="1" max="31" value="${c.dueDay || ""}"></label></form>
+      <label>Statement day of month<input type="number" id="csd" min="1" max="28" value="${c.stmtDay || ""}"></label><label>Payment due day of month<input type="number" id="cdd" min="1" max="31" value="${c.dueDay || ""}"></label>
+      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Card colour</div>${palSw(c.col || "", true)}</div></form>
     <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="cs">Save</button></div></div>`,
-  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
-    $("#cs", m).onclick = () => { a.card = { limit: +$("#cl", m).value || 0, stmtDay: +$("#csd", m).value || 0, dueDay: +$("#cdd", m).value || 0 }; a.last4 = $("#c4", m).value.replace(/\D/g, ""); a.limit = a.card.limit; stamp(a); changed(); close(); renderApp(); toast("Card saved"); }; });
+  (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close); let ccol = c.col || "";
+    m.querySelectorAll("[data-col]").forEach(b => b.onclick = () => { ccol = b.dataset.col; m.querySelectorAll("[data-col]").forEach(x => x.classList.toggle("on", x === b)); });
+    $("#cs", m).onclick = () => { a.card = { ...c, col: ccol, limit: +$("#cl", m).value || 0, stmtDay: +$("#csd", m).value || 0, dueDay: +$("#cdd", m).value || 0 }; a.last4 = $("#c4", m).value.replace(/\D/g, ""); a.limit = a.card.limit; stamp(a); changed(); close(); renderApp(); toast("Card saved"); }; });
 }
 
 /* ================= loans ================= */
@@ -4124,7 +4143,7 @@ function collEditor(c) {
   modal(`<div class="m-head"><h2>${isNew ? "New collection" : "Edit collection"}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <div class="plastic gprev coll" id="gpv" style="--g:${col}"><div class="pl-top"><span class="g-ic">${icon(ic, 2)}</span><b id="gpn">${esc(c?.name || "New collection")}</b></div><div class="pl-bot"><span id="gpc">${sel.size} accounts</span><b class="money" id="gpt"></b></div></div>
     <form class="form" novalidate><label class="full">Name<input type="text" id="cnm" value="${esc(c?.name || "")}" placeholder="e.g. Emergency fund, Wife's money, Kerala assets"></label>
-      <div class="full"><div class="swrow">${GRP_COL.map(x => `<button type="button" class="sw ${x === col ? "on" : ""}" data-col="${x}" style="--g:${x}" aria-label="Colour"></button>`).join("")}</div></div>
+      <div class="full"><div class="muted" style="font-size:.82rem;font-weight:600;margin-bottom:.4rem">Colour</div>${palSw(col)}</div>
       <div class="full"><div class="swrow">${GRP_IC.map(k => `<button type="button" class="icb ${k === ic ? "on" : ""}" data-ic="${k}" aria-label="${k}">${icon(k)}</button>`).join("")}</div></div>
       <div class="full"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem"><b style="font-size:.85rem">Accounts</b><input type="search" id="cq" class="search" placeholder="Search" style="flex:1;padding:.4rem .6rem"></div><div class="fs" style="max-height:16rem" id="cl">${accs.map(a => `<label class="tgl" data-n="${esc(a.name.toLowerCase())}"><input type="checkbox" value="${a.id}" ${sel.has(a.id) ? "checked" : ""}> ${esc(a.name)} <span class="faint">${esc(compact(bal(a.id), a.cur))} · ${esc(groupMap().get(a.group)?.name || "No group")}</span></label>`).join("")}</div></div>
       ${curPickHTML(new Set())}
@@ -4526,7 +4545,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-11 · b88254"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-11 · 1bbdbd"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
