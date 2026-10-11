@@ -4526,7 +4526,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-11 · bc8a26"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-11 · b88254"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -6138,6 +6138,16 @@ function budDelOne(b) { schedConfirm("Delete this limit?", `The ${esc(bcats(b).m
   } catch (e) { console.error(e); } };
 })();
 
+/* ---- keep the scroll position when a page redraws itself (iOS app switching, toggles, sync) ---- */
+(function () { const prev = renderView;
+  renderView = function (item) { const nav = S2._navTo !== undefined && S2._navTo === S2.view, view = S2.view, same = renderView._last === view; renderView._last = view;
+    const y = window.scrollY, v = document.getElementById("view"), h = v ? v.offsetHeight : 0;
+    if (!nav && same && y > 40 && v) v.style.minHeight = h + "px";
+    const r = prev.apply(this, arguments);
+    if (!nav && same && y > 40 && v) { const back = () => { if (S2.view === view && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); }; back(); requestAnimationFrame(back); [120, 350, 700].forEach(t => setTimeout(back, t)); setTimeout(() => { v.style.minHeight = ""; }, 900); }
+    return r; };
+})();
+
 /* ================= home insights ================= */
 function monthsBack(n, endYm) { const out = []; let ym = addMonths((endYm || todayISO().slice(0, 7)) + "-01", -(n - 1)).slice(0, 7); for (let i = 0; i < n; i++) { out.push(ym); ym = addMonths(ym + "-01", 1).slice(0, 7); } return out; }
 const isInterest = c => { if (!c) return false; const cc = catMap().get(c); const tc = topCat(c); return /interest|finance cost|bank charge|late fee|annual fee/i.test((cc?.name || "") + " " + (tc?.name || "")); };
@@ -6593,7 +6603,7 @@ function makeSampleRaw() {
 let toastT;
 function toast(msg) { document.querySelectorAll(".toast").forEach(x => x.remove()); const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg; document.body.appendChild(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600); }
 
-let rsT; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (["home", "styles"].includes(S2.view)) renderApp(); }, 250); });
+let rsT, rsW = innerWidth; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (Math.abs(innerWidth - rsW) < 2) return; rsW = innerWidth; if (["home", "styles"].includes(S2.view)) renderApp(); }, 250); });
 if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (PREF.mode === "auto") renderApp(); });
 new MutationObserver(() => { const t = document.documentElement.getAttribute("data-theme"); if (t && document.documentElement.getAttribute("data-host-theme") !== t) { document.documentElement.setAttribute("data-host-theme", t); if (PREF.mode === "auto") renderApp(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
