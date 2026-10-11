@@ -1220,10 +1220,10 @@ function donut(el, items, cur, centerLabel) { if (!el || !el.isConnected) return
   const on = i => { el.querySelectorAll("path[data-i]").forEach(p => p.style.transform = +p.dataset.i === i ? "scale(1.06)" : ""); el.querySelectorAll(".dleg div").forEach(d => d.classList.toggle("on", +d.dataset.i === i)); };
   el.querySelectorAll("[data-i]").forEach(n => { n.addEventListener("pointerenter", () => on(+n.dataset.i)); n.addEventListener("pointerleave", () => on(-1)); });
 }
-function moneyBar(el, inc, exp, ids, from, to, cur) { if (!el || !el.isConnected) return;
+function moneyBar(el, inc, exp, ids, from, to, cur, rows, per) { if (!el || !el.isConnected) return;
   const ti = [...inc.values()].reduce((s, v) => s + v, 0), l = [...exp.entries()].filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]); const te = l.reduce((s, e) => s + e[1], 0);
   if (!ti && !te) { el.innerHTML = `<div class="empty">No income or spending in this period</div>`; return; }
-  const head = l.slice(0, 7).map(([k, v], i) => ({ k, v, id: ids.get(k), c: `var(--c${(i % 8) + 1})` })); const rest = l.slice(7); if (rest.length) head.push({ k: "Everything else", v: rest.reduce((s, e) => s + e[1], 0), ids: rest.map(e => ids.get(e[0])), c: "var(--faint)" });
+  const head = l.slice(0, 7).map(([k, v], i) => ({ k, v, id: ids.get(k), c: `var(--c${(i % 8) + 1})` })); const rest = l.slice(7); if (rest.length) head.push({ k: "Everything else", v: rest.reduce((s, e) => s + e[1], 0), ids: rest.map(e => ids.get(e[0])), names: rest.map(e => e[0]), c: "var(--faint)" });
   const kept = ti - te, whole = Math.max(ti, te) || 1; if (kept > 0) head.push({ k: "Kept (saved)", v: kept, c: "var(--pos)", saved: true });
   const pc = v => ti > 0 ? (v / ti * 100) : 0; const pf = v => { const p = pc(v); return p >= 10 ? p.toFixed(0) + "%" : p.toFixed(1) + "%"; };
   el.innerHTML = `<div class="mb-sum"><div><span class="muted">Earned</span><b class="money">${esc(compact(ti, cur))}</b></div><div><span class="muted">Spent</span><b class="money">${esc(compact(te, cur))}</b></div><div><span class="muted">${kept >= 0 ? "Kept" : "Spent more than earned"}</span><b class="money ${kept >= 0 ? "pos" : "neg"}">${esc(compact(Math.abs(kept), cur))}${ti > 0 ? ` <small>${Math.abs(kept / ti * 100).toFixed(0)}%</small>` : ""}</b></div></div>
@@ -1232,7 +1232,12 @@ function moneyBar(el, inc, exp, ids, from, to, cur) { if (!el || !el.isConnected
     <div class="mb-list">${head.map((x, i) => `<button class="mb-row ${x.saved ? "saved" : ""}" data-mb="${i}" ${x.saved ? "disabled" : ""}><i style="background:${x.c}"></i><span class="mb-n">${esc(x.k)}</span><span class="mb-t"><span style="width:${(x.v / Math.max(...head.map(h => h.v)) * 100).toFixed(1)}%;background:${x.c}"></span></span><b class="money">${esc(compact(x.v, cur))}</b><span class="mb-p">${ti > 0 ? pf(x.v) + " of income" : ""}</span></button>`).join("")}</div>`;
   const hi = i => el.querySelectorAll("[data-mb]").forEach(n => n.classList.toggle("dim", i != null && n.dataset.mb !== String(i)));
   el.querySelectorAll("[data-mb]").forEach(n => { n.onmouseenter = () => hi(n.dataset.mb); n.onmouseleave = () => hi(null); });
-  el.querySelectorAll(".mb-row:not(.saved)").forEach(b => b.onclick = () => { const x = head[+b.dataset.mb]; const want = new Set(x.ids || [x.id]); const list = D().tx.filter(t => { if (t.t !== "exp" || t.d < from || t.d > to) return false; const c = t.c?.[0]?.[0]; const tc = c ? topCat(c)?.id : 0; return want.has(tc ?? 0); }); drill(`${x.k} · last 12 months`, list); });
+  el.querySelectorAll(".mb-row:not(.saved)").forEach(b => b.onclick = () => { const x = head[+b.dataset.mb];
+    if (rows) { const list = (x.names || [x.k]).flatMap(n => rows.get("exp|" + n) || []); const tot = list.reduce((s, r) => s + r.val, 0), seen = new Set(list.map(r => r.t.id));
+      modal(`<div class="m-head"><h2>${esc(x.k)} · ${esc(per || "")}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div><div class="muted" style="font-size:.85rem">${seen.size} entries · ${esc(money(tot, cur, { dec: false }))} (same figure as the card)</div>
+        <div class="list" style="max-height:60vh;overflow:auto">${list.slice().sort((a, b) => b.t.d.localeCompare(a.t.d)).slice(0, 400).map(r => txLine(r.t) + (Math.abs(Math.abs(toBase(r.t.v, accMap().get(r.t.a)?.cur)) - Math.abs(r.val)) > .5 ? `<div class="muted" style="font-size:.75rem;padding:0 .5rem .5rem 3.6rem">Counted in this category: ${esc(money(r.val, cur, { dec: false }))}</div>` : "")).join("") || `<div class="empty">No entries</div>`}</div>`,
+        (m, close) => { m.querySelectorAll("[data-x]").forEach(y => y.onclick = close); m.querySelectorAll("[data-tx]").forEach(r => r.onclick = () => { close(); openTx(txMap().get(+r.dataset.tx)); }); }, true); return; }
+    const want = new Set(x.ids || [x.id]); const list = D().tx.filter(t => { if (t.t !== "exp" || t.d < from || t.d > to) return false; const c = t.c?.[0]?.[0]; const tc = c ? topCat(c)?.id : 0; return want.has(tc ?? 0); }); drill(`${x.k} · last 12 months`, list); });
 }
 function heatmap(el, days, cur) { if (!el || !el.isConnected) return;
   // days: Map iso -> spend; last 26 weeks
@@ -4521,7 +4526,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-11 · 7253f3"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-11 · bc8a26"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -6386,10 +6391,10 @@ function vHome(v) {
     drawNW();
     // where money went: income split into spending categories and what was kept
     const drawSK = () => { const w = S2.wm || "12"; let from; if (w === "wk") { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); from = isoLocal(d); } else if (w === "mo") from = now.slice(0, 7) + "-01"; else if (w === "ytd") from = now.slice(0, 4) + "-01-01"; else from = addMonths(now, -12);
-      const inc = new Map(), exp = new Map(), ids = new Map();
-      eachFlow(from, now, (k, c, val) => { const tc = c ? topCat(c) : null; const name = tc ? tc.name : (k === "inc" ? "Other income" : "Uncategorized"); const m = k === "inc" ? inc : exp; m.set(name, (m.get(name) || 0) + val); if (k === "exp") ids.set(name, tc ? tc.id : 0); });
+      const inc = new Map(), exp = new Map(), ids = new Map(), rows = new Map();
+      eachFlow(from, now, (k, c, val, t) => { const tc = c ? topCat(c) : null; const name = tc ? tc.name : (k === "inc" ? "Other income" : "Uncategorized"); const m = k === "inc" ? inc : exp; m.set(name, (m.get(name) || 0) + val); if (k === "exp") { ids.set(name, tc ? tc.id : 0); const key = "exp|" + name; if (!rows.has(key)) rows.set(key, []); rows.get(key).push({ t, val }); } });
       const el = $("#skNote"); if (el) el.textContent = ({ wk: "Since Monday", mo: "Since " + fmtDate(from), ytd: "Since 1 Jan " + now.slice(0, 4), 12: "Last 12 months" })[w] + " · tap a category to see its entries";
-      moneyBar($("#sk"), inc, exp, ids, from, now, B); v.querySelectorAll("[data-wm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.wm === w)); };
+      moneyBar($("#sk"), inc, exp, ids, from, now, B, rows, ({ wk: "this week", mo: "this month", ytd: "year to date", 12: "last 12 months" })[w]); v.querySelectorAll("[data-wm]").forEach(b => b.setAttribute("aria-pressed", b.dataset.wm === w)); };
     v.querySelectorAll("[data-wm]").forEach(b => b.onclick = () => { S2.wm = b.dataset.wm; drawSK(); }); drawSK();
     const mix = Object.entries(sm.cls).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ k, v })); donut($("#mix"), mix, B, "Total assets");
     barsChart($("#flow"), monthlyFlows(12), B);
