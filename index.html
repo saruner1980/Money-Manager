@@ -602,6 +602,10 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 .hcs-s{margin-left:.5rem;vertical-align:middle;font-size:.7rem}.hcs-s button{padding:.15rem .45rem;font-size:.7rem;min-height:0!important}.tile .t-lab{flex-wrap:wrap}.tile .hcs-s{margin-left:auto}.hero:not(.gold-hero) .hcs-s{background:rgba(255,255,255,.18)}
 .tile .hcseg{background:var(--surface2)}.tile .hcseg button{color:var(--muted)}.tile .hcseg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--e1)}
 .hero .delta{white-space:nowrap}.hero .lab{flex-wrap:wrap}
+.donut-wrap svg{display:block;width:100%;height:auto;aspect-ratio:1/1;max-width:12rem;justify-self:center;overflow:visible;position:static}
+.donut-wrap .dleg{position:static;min-width:0;width:100%}
+@media (max-width:760px){.donut-wrap{grid-template-columns:minmax(0,1fr)!important;justify-items:center;gap:1rem!important}.donut-wrap .dleg{justify-self:stretch}}
+@container (max-width:26rem){.donut-wrap{grid-template-columns:minmax(0,1fr)!important;gap:1rem!important}}
 </style>
 
 <div id="root"></div>
@@ -4517,7 +4521,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-10 · 8e81f0"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-11 · 7253f3"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
