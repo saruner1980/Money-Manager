@@ -1718,7 +1718,7 @@ function vAccounts(v) {
   const p = S2.pa ||= { country: "all", zero: false }; p.open ||= []; const B = base();
   const groups = D().groups.slice().sort((a, b) => a.order - b.order); const buckets = new Map(groups.map(g => [g.id, []])); buckets.set("", []);
   let shown = 0, hidden = 0;
-  for (const a of D().accounts) { if (p.country !== "all" && ctryOf(a) !== p.country) continue; if (!p.zero && Math.abs(bal(a.id)) < .005) { hidden++; continue; } shown++; (buckets.has(a.group) ? buckets.get(a.group) : buckets.get("")).push(a); }
+  const archL = []; for (const a of D().accounts) { if (a.archived) { archL.push(a); continue; } if (p.country !== "all" && ctryOf(a) !== p.country) continue; if (!p.zero && Math.abs(bal(a.id)) < .005) { hidden++; continue; } shown++; (buckets.has(a.group) ? buckets.get(a.group) : buckets.get("")).push(a); }
   const list = [...groups.map((g, i) => [g, buckets.get(g.id), i]), [{ id: "", name: "Other accounts" }, buckets.get(""), groups.length]].filter(([g, l]) => l.length || (g.id && !D().accounts.some(a => a.group === g.id)));
   const card = ([g, l, i]) => { const L = grpLook(g, i); l.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)); const tot = l.reduce((s, a) => s + toBase(bal(a.id), a.cur), 0);
     const byCur = {}; for (const a of l) byCur[a.cur] = (byCur[a.cur] || 0) + Math.abs(toBase(bal(a.id), a.cur)); const absT = Object.values(byCur).reduce((s, x) => s + x, 0) || 1; const open = p.open.includes(g.id);
@@ -1732,8 +1732,11 @@ function vAccounts(v) {
       <div class="seg" role="group" aria-label="View"><button data-atab="g" aria-pressed="${p.tab !== "c"}">Groups</button><button data-atab="c" aria-pressed="${p.tab === "c"}">Collections${colls().length ? " " + colls().length : ""}</button></div>
       <label class="tgl"><input type="checkbox" id="zero" ${p.zero ? "checked" : ""}> Show accounts at zero</label><span class="grow"></span><button class="btn sm ghost" id="gAll">${p.open.length ? "Close all" : "Open all"}</button>${p.tab === "c" ? `<button class="btn sm" id="newColl2">${icon("plus")}New collection</button>` : `<button class="btn sm" id="newGrp">${icon("plus")}New group</button>`}<button class="btn sm" id="newAcc">${icon("plus")}New account</button></div>
     ${p.tab === "c" ? collStrip() + `<section class="ggrid">${collCards()}</section>` : `<section class="ggrid">${list.map(card).join("")}</section>`}
+    ${p.tab !== "c" && archL.length ? `<details class="archsec" ${p.archOpen ? "open" : ""}><summary>Archived (${archL.length})</summary><div class="list">${archL.sort((a, b) => a.name.localeCompare(b.name)).map(a => accRow2(a).replace('class="row acc-row"', 'class="row acc-row"').replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-unarch="${a.id}">Unarchive</button></div></div>`)).join("")}</div></details>` : ""}
     <p class="muted" style="font-size:.78rem">Tap a group to open it. Shift-click or long-press to keep several open.</p>`;
   wireTop(); wireAdd(v); wireAcc(v);
+  { const dt = v.querySelector(".archsec"); if (dt) dt.ontoggle = () => { p.archOpen = dt.open; }; }
+  v.querySelectorAll("[data-unarch]").forEach(b => b.onclick = e => { e.stopPropagation(); const x = D().accounts.find(y => y.id === +b.dataset.unarch); if (x) { x.archived = false; stamp(x); changed(); renderApp(); toast("Unarchived"); } });
   const setOpen = (el, on) => { el.classList.toggle("open", on); el.querySelector(".gface").setAttribute("aria-expanded", on); const id = el.dataset.gid; p.open = p.open.filter(x => x !== id); if (on) p.open.push(id); $("#gAll").textContent = p.open.length ? "Close all" : "Open all"; };
   const toggle = (el, multi) => { const on = !el.classList.contains("open"); const run = () => { if (on && !multi) v.querySelectorAll(".gcard.open").forEach(o => o !== el && setOpen(o, false)); setOpen(el, on); };
     flip(v, run);
@@ -4548,7 +4551,7 @@ let P6_install = null; window.addEventListener("beforeinstallprompt", e => { e.p
 window.addEventListener("appinstalled", () => { P6_install = null; refreshInstallCard(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
 const isiOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const ML_BUILD = "2026-10-17 · 42510f"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
+const ML_BUILD = "2026-10-18 · 00fb7e"; const mlBuildLabel = () => ML_BUILD.startsWith("__") ? "preview" : ML_BUILD;
 let UP_ready = false;
 function upBar() { UP_ready = true; let b = document.getElementById("upBar"); if (!b) { b = document.createElement("button"); b.id = "upBar"; b.className = "gdbar top"; b.type = "button"; b.style.top = "calc(3.8rem + env(safe-area-inset-top,0px))"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; b.textContent = "Saving, then reloading…"; try { await saveVault(); } catch (e) { } location.reload(); }; } b.textContent = "New version ready. Tap to reload"; }
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) { navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => { P6.sw = true; P6.reg = r; refreshInstallCard(); let had = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) upBar(); had = true; });
@@ -6168,6 +6171,59 @@ function budDelOne(b) { schedConfirm("Delete this limit?", `The ${esc(bcats(b).m
     const r = prev.apply(this, arguments);
     if (!nav && same && y > 40 && v) { const t0 = performance.now(); const back = () => { if (userAt > t0 || S2.view !== view) return; if (Math.abs(window.scrollY - y) > 2) { renderView._prog = true; window.scrollTo(0, y); setTimeout(() => { renderView._prog = false; }, 60); } }; back(); requestAnimationFrame(back); [120, 350, 700].forEach(t => setTimeout(back, t)); setTimeout(() => { v.style.minHeight = ""; }, 900); }
     return r; };
+})();
+
+/* ===== v60: searchable account pickers, group total currency swap, no redraw while scrolling ===== */
+(function () {
+  const IDS = new Set(["tAcc", "tTo", "sa", "sto", "ef", "ipf", "lf", "facc"]);
+  function open(sel, btn) {
+    const ov = document.createElement("div"); ov.className = "srchov";
+    ov.innerHTML = `<div class="srchbox" role="dialog" aria-label="Choose account"><div class="srchhead"><input type="search" class="srchin" placeholder="Type to search accounts" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" class="btn sm" data-sc>Cancel</button></div><div class="srchlist"></div></div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector(".srchin"), list = ov.querySelector(".srchlist");
+    const close = () => { ov.remove(); document.removeEventListener("keydown", kd, true); };
+    const kd = e => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); } else if (e.key === "Enter" && document.activeElement === inp) { e.preventDefault(); e.stopPropagation(); const f = list.querySelector("button"); if (f) f.click(); } };
+    document.addEventListener("keydown", kd, true);
+    const paint = () => { const q = inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let h = "";
+      const add = (o, grp) => { const t = o.text; if (q.length && !q.every(w => (t + " " + (grp || "")).toLowerCase().includes(w))) return false; h += `<button type="button" class="srchopt ${o.value === sel.value ? "cur" : ""}" data-v="${esc(o.value)}">${esc(t)}</button>`; return true; };
+      for (const ch of sel.children) { if (ch.tagName === "OPTGROUP") { let part = ""; const keep = h; h = ""; let n = 0; for (const o of ch.children) if (add(o, ch.label)) n++; part = h; h = keep + (n ? `<div class="srchgrp">${esc(ch.label)}</div>` + part : ""); } else if (!q.length || ch.value) add(ch); }
+      list.innerHTML = h || `<div class="muted" style="padding:1rem">No account matches</div>`;
+      list.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); close(); }); };
+    inp.oninput = paint; paint(); ov.querySelector("[data-sc]").onclick = close; ov.addEventListener("pointerdown", e => { if (e.target === ov) close(); });
+    setTimeout(() => { inp.focus(); const c = list.querySelector(".cur"); if (c) c.scrollIntoView({ block: "center" }); }, 30);
+  }
+  function enhance(sel) {
+    if (sel._srch) return; sel._srch = 1; sel.style.display = "none";
+    const b = document.createElement("button"); b.type = "button"; b.className = "srchbtn"; sel.after(b);
+    const lab = () => { const o = sel.options[sel.selectedIndex]; const t = o ? o.text : "Choose…"; if (b.textContent !== t) b.textContent = t; b.disabled = sel.disabled; if (!sel.isConnected) { clearInterval(iv); } };
+    const iv = setInterval(lab, 300); lab(); sel.addEventListener("change", lab);
+    b.onclick = () => open(sel, b);
+  }
+  const scan = () => document.querySelectorAll("select").forEach(s => { if (IDS.has(s.id) && s.querySelector("optgroup")) enhance(s); });
+  new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });
+  const css = document.createElement("style"); css.textContent = `.srchbtn{width:100%;text-align:left;font:inherit;padding:.62rem .8rem;border-radius:var(--r-s,10px);border:1px solid var(--line,#ccc);background:var(--bg-in,var(--card,#fff));color:inherit;min-height:2.6rem;display:flex;align-items:center;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srchbtn::after{content:"▾";margin-left:auto;opacity:.6;padding-left:.5rem}
+.srchov{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(env(safe-area-inset-top),.6rem) .6rem .6rem}
+.srchbox{width:min(32rem,100%);max-height:calc(100dvh - 1.5rem);display:flex;flex-direction:column;background:var(--card,#fff);color:var(--ink,inherit);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden}
+.srchhead{display:flex;gap:.5rem;padding:.7rem;border-bottom:1px solid var(--line,#ddd)}.srchin{flex:1;font-size:16px;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--line,#ccc);background:var(--bg-in,transparent);color:inherit}
+.srchlist{overflow:auto;-webkit-overflow-scrolling:touch;padding:.3rem .4rem .7rem}.srchgrp{font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.6;padding:.7rem .5rem .2rem}
+.srchopt{display:block;width:100%;text-align:left;font:inherit;padding:.7rem .6rem;border:0;border-radius:10px;background:transparent;color:inherit;cursor:pointer;min-height:2.75rem}.srchopt:hover,.srchopt:active{background:color-mix(in srgb,currentColor 9%,transparent)}.srchopt.cur{font-weight:800;background:color-mix(in srgb,var(--acc,#2a7) 16%,transparent)}
+.archsec{margin:1rem 0}.archsec>summary{cursor:pointer;font-weight:700;padding:.6rem .2rem;opacity:.8}`;
+  document.body.appendChild(css);
+
+  // group / collection total: chosen currency large, base currency small
+  const pv = vAccounts;
+  vAccounts = function (v) { const r = pv.apply(this, arguments);
+    try { (v || document).querySelectorAll(".gcard .gface").forEach(f => { const tot = f.querySelector(".g-tot"), chip = f.querySelector(".gchip:not(.off)"); if (!tot || !chip || tot._sw) return; const b = chip.querySelector("b"), em = chip.querySelector("em"); if (!b || !em) return; const big = b.textContent, small = tot.textContent, code = em.textContent; tot.textContent = big; b.textContent = small; em.textContent = base(); chip.title = base(); tot._sw = 1; }); } catch (e) { }
+    return r; };
+
+  // hold back redraws while the user is actively scrolling
+  let lastScr = 0; addEventListener("scroll", () => { if (!renderView._prog) lastScr = performance.now(); }, { passive: true, capture: true });
+  const pr = renderApp; let pend = null;
+  renderApp = function () { const idle = performance.now() - lastScr;
+    if (idle < 300 && (S2.view === "accounts" || S2.view === "home")) { if (!pend) { const tick = () => { if (performance.now() - lastScr < 300) { pend = setTimeout(tick, 150); } else { pend = null; pr(); } }; pend = setTimeout(tick, 150); } return; }
+    if (pend) { clearTimeout(pend); pend = null; }
+    return pr.apply(this, arguments); };
 })();
 
 /* ================= home insights ================= */
