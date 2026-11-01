@@ -3478,12 +3478,20 @@ function loanEditor(a) {
       a.loan = o; stamp(a); changed(); close(); renderApp(); toast("Loan saved"); }; });
 }
 /* ---------- record a payment ---------- */
+function payerDefault(a) {
+  const L = a.loan || {}, ok = x => x && !x.archived && x.id !== a.id && ["bank", "cash", "card"].includes(kindOf(x));
+  const f0 = accMap().get(L.from); if (ok(f0)) return f0.id;
+  const last = D().tx.filter(t => t.t === "tout" && t.xa === a.id).sort((p, q) => (q.d || "").localeCompare(p.d || ""))[0]; const f1 = last && accMap().get(last.a); if (ok(f1)) return f1.id;
+  const c = new Map(); for (const t of D().tx) if (t.t === "tout" && t.xa === a.id) c.set(t.a, (c.get(t.a) || 0) + 1);
+  const used = [...c.entries()].sort((p, q) => q[1] - p[1]).map(([id]) => accMap().get(id)).find(ok); if (used) return used.id;
+  const banks = D().accounts.filter(x => ok(x) && kindOf(x) === "bank" && x.cur === a.cur).sort((p, q) => bal(q.id) - bal(p.id)); return banks.length === 1 ? banks[0].id : (banks[0] ? banks[0].id : null);
+}
 function recordEMI(a, i) {
   i = i || loanInfo(a); const c = i.c, L = a.loan || {}; const nx = i.am?.rows[0]; const W = loanWord(c, true);
   const defPay = c.method === "bullet" ? (i.am?.rows.at(-1)?.pay || 0) : nx ? nx.pay : i.emi || 0, defInt = c.method === "bullet" ? settleQuote(a, todayISO()).accrued : nx ? nx.i : 0;
   modal(`<div class="m-head"><h2>Record payment · ${esc(a.name)}</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
     <p class="muted" style="margin:0">The payment is saved as a transfer into the loan and the ${loanWord(c)} part as a cost, so the balance falls by the principal only.${c.method === "flat" ? ` The ${loanWord(c)} part follows the ${c.split === "act" ? "actuarial" : "Rule of 78"} split.` : ""}${c.ins ? " Insurance is recorded as a cost too." : ""}</p>
-    <form class="form" novalidate><label>Paid from<select id="ef">${accOpts(L.from || D().accounts.find(x => kindOf(x) === "bank" && x.cur === a.cur && !x.archived)?.id)}</select></label><label>Date<input type="date" id="ed" value="${todayISO()}"></label>
+    <form class="form" novalidate><label>Paid from<select id="ef">${(() => { const d = payerDefault(a); return (d ? "" : `<option value="">Choose…</option>`) + accOpts(d); })()}</select><span id="efW" class="muted" style="font-size:.78rem;display:block;margin-top:.25rem"></span></label><label>Date<input type="date" id="ed" value="${todayISO()}"></label>
       <label>Payment (${a.cur})<input type="number" id="ee" step="0.01" value="${defPay ? defPay.toFixed(2) : ""}"></label><label>${W} part<input type="number" id="ei" step="0.01" value="${defInt ? defInt.toFixed(2) : ""}"></label>
       ${c.ins ? `<label>Insurance<input type="number" id="eins" step="0.01" value="${(+c.ins).toFixed(2)}"></label>` : ""}
       <label class="full">${W} category<select id="ec">${catOpts("exp", L.cat || D().cats.find(x => isInterest(x.id))?.id)}</select></label></form>
@@ -3492,14 +3500,17 @@ function recordEMI(a, i) {
   (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
     const upd = () => { const e = +$("#ee", m).value || 0, it = +$("#ei", m).value || 0; $("#esplit", m).innerHTML = `<div><span class="muted">Principal</span><b class="money">${esc(money(e - it, a.cur))}</b></div><div><span class="muted">${W}</span><b class="money">${esc(money(it, a.cur))}</b></div><div><span class="muted">Balance after</span><b class="money">${esc(money(-(i.b - (e - it)), a.cur))}</b></div>`; };
     $("#ee", m).oninput = upd; $("#ei", m).oninput = upd; upd();
+    const pw = () => { const x = accMap().get(+$("#ef", m).value); $("#efW", m).textContent = !x ? "Choose the account the money leaves from." : x.archived ? "This account is archived." : !["bank", "cash", "card"].includes(kindOf(x)) ? "This is not a bank, cash or card account. Check it is the one you paid from." : ""; $("#efW", m).style.color = $("#efW", m).textContent ? "var(--neg,#c0392b)" : ""; };
+    $("#ef", m).addEventListener("change", pw); pw();
     $("#es", m).onclick = () => { const from = +$("#ef", m).value, e = Math.round((+$("#ee", m).value || 0) * 100) / 100, it = Math.round((+$("#ei", m).value || 0) * 100) / 100, insA = Math.round((+($("#eins", m)?.value) || 0) * 100) / 100, d = $("#ed", m).value || todayISO();
-      const er = $("#eErr", m); if (!from || e <= 0) { er.hidden = false; er.textContent = "Choose the paying account and the amount."; return; } if (it < 0 || it > e) { er.hidden = false; er.textContent = `${W} must be between zero and the payment.`; return; }
+      const er = $("#eErr", m); if (!from || e <= 0) { er.hidden = false; er.textContent = "Choose the paying account and the amount."; return; } if (from === a.id) { er.hidden = false; er.textContent = "The loan cannot pay itself. Choose the bank or cash account you paid from."; return; } if (it < 0 || it > e) { er.hidden = false; er.textContent = `${W} must be between zero and the payment.`; return; }
       const cf = accMap().get(from).cur, tot = e + insA, recv = cf === a.cur ? tot : Math.round(fromTo(tot, cf, a.cur) * 100) / 100, sent = cf === a.cur ? tot : Math.round(fromTo(tot, a.cur, cf) * 100) / 100;
       const iW = newId(), iD = newId(), cat = +$("#ec", m).value || null;
       D().tx.push(stamp({ id: iW, t: "tout", a: from, d, v: -sent, p: null, ds: "Payment " + a.name, n: "", c: null, xa: a.id, x: iD }), stamp({ id: iD, t: "tin", a: a.id, d, v: recv, p: null, ds: "Payment from " + accName(from), n: "", c: null, xa: from, x: iW }));
       if (it > 0) D().tx.push(stamp({ id: newId(), t: "exp", a: a.id, d, v: -it, p: null, ds: W + " " + a.name, n: "", c: cat ? [[cat, -it]] : null }));
       if (insA > 0) D().tx.push(stamp({ id: newId(), t: "exp", a: a.id, d, v: -insA, p: null, ds: "Insurance " + a.name, n: "", c: null }));
-      changed(); close(); renderApp(); toast("Payment recorded"); }; });
+      if (a.loan && !accMap().get(a.loan.from)) { const x = D().accounts.find(y => y.id === a.id); x.loan = { ...(x.loan || {}), from }; stamp(x); }
+      changed(); close(); renderApp(); toast("Paid " + money(sent, cf) + " from " + accName(from)); }; });
 }
 
 /* ================= Monthly forecast table ================= */
