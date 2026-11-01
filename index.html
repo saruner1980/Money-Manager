@@ -6779,12 +6779,18 @@ document.addEventListener("pointermove", e => { if (!document.body.classList.con
       $("#tdGo", m).onclick = () => { const ids = new Set([...m.querySelectorAll("#tdL input:checked")].map(i => +i.value)); let n = 0; for (const a of D().accounts) if (ids.has(a.id) && !a.archived) { a.archived = true; stamp(a); n++; } changed(); close(); renderApp(); toast("Archived " + n + " account" + (n === 1 ? "" : "s")); };
       paint(); });
   }
+  window.tidyAccounts = tidy;
+  const pd = vData;
+  vData = function (v) { const r = pd.apply(this, arguments);
+    try { if (v && !v.querySelector("#tidyCard")) { const c = document.createElement("div"); c.className = "card span-12"; c.id = "tidyCard";
+        c.innerHTML = `<div class="card-h"><h2>Tidy up accounts</h2></div><p class="muted" style="margin:0 0 .7rem">Archive old accounts that have a zero balance and no recent activity, so they stop appearing in lists and pickers. Their history stays in reports, and you can unarchive any time from Accounts, with Show archived ticked.</p><button class="btn" id="tidyB">Review old accounts…</button>`;
+        const host = v.querySelector("section") || v; host.appendChild(c); c.querySelector("#tidyB").onclick = tidy; } } catch (e) { console.error(e); }
+    return r; };
   vAccounts = function (v) { const r = pv.apply(this, arguments);
     try { const p = S2.pa; if (p && p.tab !== "c") { const tb = (v || document).querySelector(".toolbar"); if (tb && !tb.querySelector("#tidyB")) {
         const anchor = tb.querySelector("#gAll"); const lab = document.createElement("label"); lab.className = "tgl"; lab.innerHTML = `<input type="checkbox" id="showArch" ${p.showArch ? "checked" : ""}> Show archived`;
-        const bt = document.createElement("button"); bt.className = "btn sm ghost"; bt.id = "tidyB"; bt.textContent = "Tidy up";
-        if (anchor) { anchor.before(lab); anchor.before(bt); } else { tb.append(lab, bt); }
-        lab.querySelector("input").onchange = e => { p.showArch = e.target.checked; p.archOpen = e.target.checked; renderApp(); }; bt.onclick = tidy; }
+        if (anchor) anchor.before(lab); else tb.append(lab);
+        lab.querySelector("input").onchange = e => { p.showArch = e.target.checked; p.archOpen = e.target.checked; renderApp(); }; }
       const dt = (v || document).querySelector(".archsec"); if (dt && !p.showArch) dt.remove(); } } catch (e) { console.error(e); }
     return r; };
 })();
