@@ -6837,5 +6837,38 @@ document.addEventListener("pointermove", e => { if (!document.body.classList.con
 .txsheet .tnote{min-height:2.6rem;height:2.6rem}.txsheet .form{gap:.55rem .7rem}`;
   document.body.appendChild(css);
 })();
+
+/* ===== v64: group / collection settings moved off the cards ===== */
+(function () {
+  function manage() {
+    const gs = D().groups.slice().sort((p, q) => p.order - q.order), cs = colls();
+    const row = (L, name, n, attr, id) => `<div class="row" style="align-items:center;gap:.6rem"><span class="cdot" style="--g:${L.col};width:.9rem;height:.9rem;border-radius:50%;background:${L.col};flex:none"></span><div class="r-main"><div class="r-t">${esc(name)}</div><div class="r-s">${n} account${n === 1 ? "" : "s"}</div></div><button class="btn sm" ${attr}="${esc(id)}">Edit</button></div>`;
+    modal(`<div class="m-head"><h2>Groups &amp; collections</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+      <div class="muted" style="font-size:.82rem;font-weight:700;margin-top:.2rem">GROUPS</div>
+      <div class="list">${gs.map((g, i) => row(grpLook(g, i), g.name, D().accounts.filter(a => a.group === g.id).length, "data-mg", g.id)).join("")}</div>
+      <div class="muted" style="font-size:.82rem;font-weight:700;margin-top:.8rem">COLLECTIONS</div>
+      <div class="list">${cs.length ? cs.map((c, i) => row(grpLook(c, i + 3), c.name, collAccs(c).length, "data-mc", c.id)).join("") : `<div class="empty">No collections yet.</div>`}</div>
+      <div class="m-foot"><div class="row-btns"><button class="btn sm" id="mgNg">+ New group</button><button class="btn sm" id="mgNc">+ New collection</button></div></div>`,
+    (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+      m.querySelectorAll("[data-mg]").forEach(b => b.onclick = () => { const g = D().groups.find(x => x.id === b.dataset.mg); close(); groupEditor(g); });
+      m.querySelectorAll("[data-mc]").forEach(b => b.onclick = () => { const c = colls().find(x => x.id === b.dataset.mc); close(); collEditor(c); });
+      $("#mgNg", m).onclick = () => { close(); groupEditor(null); }; $("#mgNc", m).onclick = () => { close(); collEditor(null); }; });
+  }
+  const pv = vAccounts;
+  vAccounts = function (v) { const r = pv.apply(this, arguments);
+    try { (v || document).querySelectorAll(".gcard:not(.gadd)").forEach(card => { const gb = card.querySelector("[data-gedit]"), cb = card.querySelector("[data-cedit]"); const list = card.querySelector(".gin"); if (!list || list.querySelector(".gset") || !(gb || cb)) return;
+      const b = document.createElement("button"); b.className = "btn sm ghost gset"; b.type = "button"; b.textContent = gb ? "Edit group" : "Edit collection";
+      b.onclick = e => { e.stopPropagation(); if (gb) groupEditor(D().groups.find(g => g.id === gb.dataset.gedit)); else collEditor(colls().find(c => c.id === cb.dataset.cedit)); };
+      list.prepend(b); }); } catch (e) { console.error(e); }
+    return r; };
+  const pd = vData;
+  vData = function (v) { const r = pd.apply(this, arguments);
+    try { if (v && !v.querySelector("#mgCard")) { const c = document.createElement("div"); c.className = "card span-12"; c.id = "mgCard";
+        c.innerHTML = `<div class="card-h"><h2>Groups &amp; collections</h2></div><p class="muted" style="margin:0 0 .7rem">Rename groups and collections, change their colour and icon, choose which accounts they hold, or add new ones.</p><button class="btn" id="mgB">Manage groups &amp; collections…</button>`;
+        const host = v.querySelector("section") || v; host.appendChild(c); c.querySelector("#mgB").onclick = manage; } } catch (e) { console.error(e); }
+    return r; };
+  const css = document.createElement("style"); css.textContent = `.gface .g-edit{display:none!important}.gface .pl-bot{margin-right:2.9rem!important}.gset{margin:.1rem 0 .4rem;justify-self:start}`;
+  document.body.appendChild(css);
+})();
 </script>
 </body></html>
