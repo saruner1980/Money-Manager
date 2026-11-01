@@ -624,6 +624,10 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 .ggrid{gap:.8rem}
 .sw.auto{display:grid;place-items:center;font-size:.7rem;font-weight:800;color:var(--muted);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 @media (max-width:760px){.ggrid{gap:.7rem}.gface .g-tot{font-size:1.35rem}}
+.card:has(.recmore[open]){position:relative;z-index:30}
+@media (max-width:760px){.recmore[open]{flex:1 1 100%}.recmore[open] .recpop{position:static;min-width:0;width:100%;margin-top:.5rem;box-sizing:border-box}.recpop input[type=date]{width:100%;box-sizing:border-box}}
+@media (max-width:760px){.card-h{flex-wrap:wrap;row-gap:.5rem}.card-h .search{min-width:0;flex:1 1 9rem;max-width:100%}}
+@media (max-width:760px){.card-h .row-btns{flex-wrap:wrap;max-width:100%}.card-h .row-btns .btn{max-width:100%}}
 </style>
 
 <div id="root"></div>
@@ -6706,6 +6710,39 @@ document.addEventListener("pointermove", e => { if (!document.body.classList.con
   if (storageOK) { const r = await tryRememberedKey(); if (r === "locked") return renderLock(); if (r === "none") await IDB.del("state"); }
   if (!S.data) S.data = makeSample();
   renderApp();
+})();
+
+/* ===== v61: payments list on the loan page: change paying account or undo ===== */
+(function () {
+  const pv = vLoan;
+  const costRows = (a, t) => D().tx.filter(x => x.t === "exp" && x.a === a.id && x.d === t.d && x.v < 0 && typeof x.ds === "string" && x.ds.endsWith(" " + a.name) && !x.x && x.src !== "mw");
+  vLoan = function (v) { const r = pv.apply(this, arguments);
+    try { const a = accMap().get(S2.p?.id); if (!a || !v) return r; const old = v.querySelector("#lpays"); if (old) old.remove();
+      const all = D().tx.filter(t => t.t === "tin" && t.a === a.id && t.x).sort((p, q) => (q.d || "").localeCompare(p.d || "") || q.id - p.id); if (!all.length) return r;
+      const P = S2.p; const rows = P.allPays ? all : all.slice(0, 12);
+      const sec = document.createElement("div"); sec.className = "card span-12"; sec.id = "lpays";
+      sec.innerHTML = `<div class="card-h"><h2>Payments made</h2><span class="row-btns">${all.length > 12 ? `<button class="btn sm" id="lpAll">${P.allPays ? "Show 12" : "Show all " + all.length}</button>` : ""}</span></div>
+        <div class="list">${rows.map(t => { const w = D().tx.find(x => x.id === t.x), from = w ? accMap().get(w.a) : accMap().get(t.xa); const bad = !from || from.archived || !["bank", "cash", "card"].includes(kindOf(from));
+          return `<div class="row" style="align-items:center;gap:.5rem;flex-wrap:wrap"><div style="flex:1 1 11rem;min-width:0"><b>${esc(fmtDate(t.d))}</b> · <span class="money">${esc(money(t.v, a.cur))}</span><div class="muted" style="font-size:.8rem">Paid from <b${bad ? ' style="color:var(--neg,#c0392b)"' : ""}>${esc(from ? from.name : "unknown account")}</b>${bad ? " ⚠" : ""}</div></div><button class="btn sm" data-lpc="${t.id}">Change account</button><button class="btn sm danger" data-lpu="${t.id}">Undo</button></div>`; }).join("")}</div>
+        <p class="muted" style="font-size:.78rem;margin:.5rem 0 0">Change account moves the payment to the right bank. Undo removes the payment and its interest, so the balance and schedule go back to before it.</p>`;
+      const anchor = v.querySelector("section"); (anchor || v).insertBefore(sec, anchor ? anchor.firstChild : null);
+      const rr = () => { renderApp(); };
+      if ($("#lpAll", sec)) $("#lpAll", sec).onclick = () => { P.allPays = !P.allPays; rr(); };
+      sec.querySelectorAll("[data-lpc]").forEach(b => b.onclick = () => { const t = D().tx.find(x => x.id === +b.dataset.lpc), w = D().tx.find(x => x.id === t.x); if (!w) return toast("The matching payment entry is missing");
+        modal(`<div class="m-head"><h2>Change paying account</h2><button class="ibtn" data-x aria-label="Close">✕</button></div><p class="muted" style="margin:0">${esc(fmtDate(t.d))} · ${esc(money(t.v, a.cur))}</p>
+          <form class="form" novalidate><label class="full">Paid from<select id="pcA">${accOpts(w.a)}</select></label></form><div id="pcE" class="err" hidden></div>
+          <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="pcS">Save</button></div></div>`,
+        (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+          $("#pcS", m).onclick = () => { const id = +$("#pcA", m).value, n = accMap().get(id); if (!n || id === a.id) { const e = $("#pcE", m); e.hidden = false; e.textContent = "Choose the bank or cash account the money left."; return; }
+            const sent = n.cur === a.cur ? t.v : Math.round(fromTo(t.v, a.cur, n.cur) * 100) / 100;
+            w.a = id; w.v = -Math.abs(sent); t.xa = id; t.ds = "Payment from " + n.name; if (/^(Payment|EMI) /.test(w.ds || "")) w.ds = (w.ds.startsWith("EMI") ? "EMI " : "Payment ") + a.name; stamp(w); stamp(t); changed(); close(); rr(); toast("Moved to " + n.name); }; }); });
+      sec.querySelectorAll("[data-lpu]").forEach(b => b.onclick = () => { const t = D().tx.find(x => x.id === +b.dataset.lpu); if (!t) return; const extra = costRows(a, t);
+        modal(`<div class="m-head"><h2>Undo this payment?</h2><button class="ibtn" data-x aria-label="Close">✕</button></div><p style="margin:.2rem 0 .8rem">${esc(fmtDate(t.d))} · <b>${esc(money(t.v, a.cur))}</b>. This removes the payment from the bank side and the loan side${extra.length ? `, plus ${extra.length} cost entr${extra.length === 1 ? "y" : "ies"} on the loan (${extra.map(x => esc(money(-x.v, a.cur))).join(", ")})` : ""}. You can record it again afterwards.</p>
+          <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn danger" id="puY">Undo payment</button></div></div>`,
+        (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+          $("#puY", m).onclick = () => { delTx(t); const ids = new Set(extra.map(x => x.id)); D().tx = D().tx.filter(x => { if (ids.has(x.id)) { tomb("tx", x.id); return false; } return true; }); changed(); close(); rr(); toast("Payment undone"); }; }); });
+    } catch (e) { console.error(e); }
+    return r; };
 })();
 </script>
 </body></html>
