@@ -628,6 +628,7 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 @media (max-width:760px){.recmore[open]{flex:1 1 100%}.recmore[open] .recpop{position:static;min-width:0;width:100%;margin-top:.5rem;box-sizing:border-box}.recpop input[type=date]{width:100%;box-sizing:border-box}}
 @media (max-width:760px){.card-h{flex-wrap:wrap;row-gap:.5rem}.card-h .search{min-width:0;flex:1 1 9rem;max-width:100%}}
 @media (max-width:760px){.card-h .row-btns{flex-wrap:wrap;max-width:100%}.card-h .row-btns .btn{max-width:100%}}
+.gface{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 </style>
 
 <div id="root"></div>
@@ -1748,7 +1749,10 @@ function vAccounts(v) {
   v.querySelectorAll(".gcard:not(.gadd)").forEach((el, i) => { const f = el.querySelector(".gface"); let lp = null, longed = false;
     f.onclick = e => { if (e.target.closest(".g-edit")) return; if (longed) { longed = false; return; } toggle(el, e.shiftKey || e.metaKey || e.ctrlKey); };
     f.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(el, e.shiftKey); } };
-    f.onpointerdown = () => { lp = setTimeout(() => { longed = true; toggle(el, true); navigator.vibrate?.(15); }, 520); }; f.onpointerup = f.onpointerleave = () => clearTimeout(lp); });
+    { let sx = 0, sy = 0, sc = 0; const stop = () => { clearTimeout(lp); lp = null; };
+      f.onpointerdown = e => { stop(); sx = e.clientX; sy = e.clientY; sc = window.scrollY; lp = setTimeout(() => { lp = null; if (Math.abs(window.scrollY - sc) > 3) return; longed = true; toggle(el, true); navigator.vibrate?.(15); }, 520); };
+      f.onpointermove = e => { if (lp && (Math.abs(e.clientX - sx) > 6 || Math.abs(e.clientY - sy) > 6)) stop(); };
+      f.onpointerup = f.onpointerleave = f.onpointercancel = stop; f.ontouchmove = stop; f.oncontextmenu = e => { if (longed) e.preventDefault(); }; } });
   v.querySelectorAll("[data-gedit]").forEach(b => b.onclick = e => { e.stopPropagation(); groupEditor(D().groups.find(g => g.id === b.dataset.gedit)); });
   v.querySelectorAll("[data-mv]").forEach(b => b.onclick = e => { e.stopPropagation(); moveAccount(accMap().get(+b.dataset.mv)); });
   $("#gAll").onclick = () => { const any = p.open.length; flip(v, () => v.querySelectorAll(".gcard:not(.gadd)").forEach(el => setOpen(el, !any))); };
