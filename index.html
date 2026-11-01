@@ -629,6 +629,7 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 @media (max-width:760px){.card-h{flex-wrap:wrap;row-gap:.5rem}.card-h .search{min-width:0;flex:1 1 9rem;max-width:100%}}
 @media (max-width:760px){.card-h .row-btns{flex-wrap:wrap;max-width:100%}.card-h .row-btns .btn{max-width:100%}}
 .gface{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.cbadge{display:inline-block;min-width:1.25rem;margin-left:.4rem;padding:0 .4rem;border-radius:999px;font-size:.72rem;font-weight:800;line-height:1.3rem;text-align:center;background:color-mix(in srgb,currentColor 16%,transparent)}
 </style>
 
 <div id="root"></div>
@@ -1734,7 +1735,7 @@ function vAccounts(v) {
       <div class="gbody"><div class="gin"><div class="list">${l.length ? l.map((a, j) => accRow2(a, showCurs(g)).replace('class="row acc-row"', `class="row acc-row gr" style="--i:${j}"`).replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-mv="${a.id}" aria-label="Move ${esc(a.name)} to another group">Move</button></div></div>`)).join("") : `<div class="empty">No accounts yet. Use Move on any account, or pick this group in Edit account.</div>`}</div></div></div></div>`; };
   v.innerHTML = `${topbar("Accounts", `${shown} shown${hidden ? ` · ${hidden} at zero hidden` : ""}`, `${addBtn("Add entry")}`)}
     <div class="toolbar"><div class="seg" role="group" aria-label="Country">${[["all", "All"], ...usedCtrys().map(c => [c.id, c.name])].map(([k, l]) => `<button data-c="${k}" aria-pressed="${p.country === k}">${l}</button>`).join("")}</div>
-      <div class="seg" role="group" aria-label="View"><button data-atab="g" aria-pressed="${p.tab !== "c"}">Groups</button><button data-atab="c" aria-pressed="${p.tab === "c"}">Collections${colls().length ? " " + colls().length : ""}</button></div>
+      <div class="seg" role="group" aria-label="View"><button data-atab="g" aria-pressed="${p.tab !== "c"}">Groups</button><button data-atab="c" aria-pressed="${p.tab === "c"}">Collections${colls().length ? `<span class="cbadge">${colls().length}</span>` : ""}</button></div>
       <label class="tgl"><input type="checkbox" id="zero" ${p.zero ? "checked" : ""}> Show accounts at zero</label><span class="grow"></span><button class="btn sm ghost" id="gAll">${p.open.length ? "Close all" : "Open all"}</button>${p.tab === "c" ? `<button class="btn sm" id="newColl2">${icon("plus")}New collection</button>` : `<button class="btn sm" id="newGrp">${icon("plus")}New group</button>`}<button class="btn sm" id="newAcc">${icon("plus")}New account</button></div>
     ${p.tab === "c" ? collStrip() + `<section class="ggrid">${collCards()}</section>` : `<section class="ggrid">${list.map(card).join("")}</section>`}
     ${p.tab !== "c" && archL.length ? `<details class="archsec" ${p.archOpen ? "open" : ""}><summary>Archived (${archL.length})</summary><div class="list">${archL.sort((a, b) => a.name.localeCompare(b.name)).map(a => accRow2(a).replace('class="row acc-row"', 'class="row acc-row"').replace(/<\/div><\/div>$/, `<button class="btn sm ghost g-mv" data-unarch="${a.id}">Unarchive</button></div></div>`)).join("")}</div></details>` : ""}
