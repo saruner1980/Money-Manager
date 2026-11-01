@@ -6754,5 +6754,39 @@ document.addEventListener("pointermove", e => { if (!document.body.classList.con
     } catch (e) { console.error(e); }
     return r; };
 })();
+
+/* ===== v62: Tidy up (bulk archive) + show/hide archived ===== */
+(function () {
+  const pv = vAccounts;
+  function cands(months) {
+    const cut = addMonths(todayISO(), -months), last = new Map(); for (const t of D().tx) { const x = last.get(t.a); if (!x || t.d > x) last.set(t.a, t.d); }
+    const sch = new Set(); for (const q of D().sched || []) { if (q.a) sch.add(q.a); if (q.to) sch.add(q.to); }
+    return D().accounts.filter(a => !a.archived && Math.abs(bal(a.id)) < .005 && !(a.inv) && !sch.has(a.id) && (last.get(a.id) || "") < cut).map(a => ({ a, last: last.get(a.id) || "" }));
+  }
+  function tidy() {
+    let months = 12; const gs = D().groups.slice().sort((p, q) => p.order - q.order);
+    modal(`<div class="m-head"><h2>Tidy up accounts</h2><button class="ibtn" data-x aria-label="Close">✕</button></div>
+      <p class="muted" style="margin:0 0 .6rem">Accounts with a zero balance, no scheduled payments and no entries in the last <select id="tdM" style="display:inline-block;width:auto"><option value="3">3 months</option><option value="6">6 months</option><option value="12" selected>12 months</option><option value="24">24 months</option><option value="60">5 years</option></select>. Archiving hides them from lists and pickers. Their history stays in reports.</p>
+      <div class="row-btns" style="margin-bottom:.5rem"><button class="btn sm" id="tdAll">Tick all</button><button class="btn sm" id="tdNone">Untick all</button></div>
+      <div class="fs" id="tdL" style="max-height:22rem"></div>
+      <div class="m-foot"><div></div><div class="row-btns"><button class="btn" data-x>Cancel</button><button class="btn primary" id="tdGo">Archive selected</button></div></div>`,
+    (m, close) => { m.querySelectorAll("[data-x]").forEach(x => x.onclick = close);
+      const paint = () => { const c = cands(months); const by = new Map(); for (const r of c) { const g = gs.find(x => x.id === r.a.group)?.name || "Other accounts"; if (!by.has(g)) by.set(g, []); by.get(g).push(r); }
+        $("#tdL", m).innerHTML = c.length ? [...by.entries()].map(([g, l]) => `<div class="srchgrp" style="position:static;--g:var(--acc,#2a7)"><i></i>${esc(g)} · ${l.length}</div>${l.sort((p, q) => p.a.name.localeCompare(q.a.name)).map(r => `<label class="tgl" style="align-items:flex-start"><input type="checkbox" value="${r.a.id}" checked><span style="flex:1;min-width:0"><b>${esc(r.a.name)}</b> <span class="muted" style="display:block;font-size:.76rem">${esc(r.a.cur)} · ${r.last ? "last entry " + esc(fmtDate(r.last)) : "no entries"}</span></span></label>`).join("")}`).join("") : `<div class="empty">Nothing to tidy. Every account has a balance, activity or a schedule.</div>`;
+        const cnt = () => { $("#tdGo", m).textContent = "Archive " + m.querySelectorAll("#tdL input:checked").length + " selected"; $("#tdGo", m).disabled = !m.querySelectorAll("#tdL input:checked").length; };
+        m.querySelectorAll("#tdL input").forEach(i => i.onchange = cnt); cnt(); };
+      $("#tdM", m).onchange = e => { months = +e.target.value; paint(); }; $("#tdAll", m).onclick = () => { m.querySelectorAll("#tdL input").forEach(i => i.checked = true); m.querySelector("#tdL input")?.dispatchEvent(new Event("change")); }; $("#tdNone", m).onclick = () => { m.querySelectorAll("#tdL input").forEach(i => i.checked = false); m.querySelector("#tdL input")?.dispatchEvent(new Event("change")); };
+      $("#tdGo", m).onclick = () => { const ids = new Set([...m.querySelectorAll("#tdL input:checked")].map(i => +i.value)); let n = 0; for (const a of D().accounts) if (ids.has(a.id) && !a.archived) { a.archived = true; stamp(a); n++; } changed(); close(); renderApp(); toast("Archived " + n + " account" + (n === 1 ? "" : "s")); };
+      paint(); });
+  }
+  vAccounts = function (v) { const r = pv.apply(this, arguments);
+    try { const p = S2.pa; if (p && p.tab !== "c") { const tb = (v || document).querySelector(".toolbar"); if (tb && !tb.querySelector("#tidyB")) {
+        const anchor = tb.querySelector("#gAll"); const lab = document.createElement("label"); lab.className = "tgl"; lab.innerHTML = `<input type="checkbox" id="showArch" ${p.showArch ? "checked" : ""}> Show archived`;
+        const bt = document.createElement("button"); bt.className = "btn sm ghost"; bt.id = "tidyB"; bt.textContent = "Tidy up";
+        if (anchor) { anchor.before(lab); anchor.before(bt); } else { tb.append(lab, bt); }
+        lab.querySelector("input").onchange = e => { p.showArch = e.target.checked; p.archOpen = e.target.checked; renderApp(); }; bt.onclick = tidy; }
+      const dt = (v || document).querySelector(".archsec"); if (dt && !p.showArch) dt.remove(); } } catch (e) { console.error(e); }
+    return r; };
+})();
 </script>
 </body></html>
