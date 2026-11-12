@@ -5245,7 +5245,12 @@ function vAccount(v) {
     $("#reg").querySelectorAll("[data-rp]").forEach(x => x.onclick = () => { const t = txMap().get(+x.dataset.rp); if (!t) return; t.pending = true; delete t.rec; stamp(t); changed(); refresh(); });
   };
   const paintHead = () => { const el = $("#balHead"); if (!el) return; el.innerHTML = `<div class="muted" style="font-size:.85rem">${avail ? "Available credit" : "Balance"}${basisRec ? " · reconciled" : ""}</div><div class="bigval money ${cls(fv(shownBal))}">${esc(money(fv(shownBal), a.cur))}</div>${a.cur !== B ? `<div class="muted money">≈ ${esc(money(toBase(fv(shownBal), a.cur), B))}</div>` : ""}${basisRec ? `<div class="muted" style="font-size:.8rem;margin-top:.2rem">With unreconciled and pending: <b class="money">${esc(money(fv(curB), a.cur))}</b></div>` : ""}`; };
-  const refresh = () => { calcRun(); paintHead(); paintPanel(); draw(); };
+  const keepY = fn => { const y = window.scrollY, rg = $("#reg"), rc = $("#recCard"), h1 = rg ? rg.offsetHeight : 0, h2 = rc ? rc.offsetHeight : 0; let touched = false; const tm = () => { touched = true; }; ["touchstart", "wheel", "keydown"].forEach(ev => addEventListener(ev, tm, { once: true, passive: true, capture: true }));
+    try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) { }
+    if (rg) rg.style.minHeight = h1 + "px"; if (rc) rc.style.minHeight = h2 + "px";
+    fn(); const back = () => { if (!touched && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); }; back(); requestAnimationFrame(back); setTimeout(back, 80); setTimeout(back, 250);
+    setTimeout(() => { if (rg) rg.style.minHeight = ""; if (rc) rc.style.minHeight = ""; }, 400); };
+  const refresh = () => keepY(() => { calcRun(); paintHead(); paintPanel(); draw(); });
   $("#q").oninput = e => { P.q = e.target.value; P.lim = 60; draw(); }; refresh();
   $("#xlReg").onclick = () => { if (!lastF.length) return toast("No entries to export"); xlRegister(a, lastF, running, [P.rf !== "all" ? ({ unrec: "Unreconciled", pend: "Pending", rec: "Reconciled" })[P.rf] : "", P.q ? `search "${P.q}"` : ""].filter(Boolean).join(", ")); };
   $("#back").onclick = () => go(k === "card" ? "cards" : k === "loan" ? "loans" : DEBT.has(k) ? "people" : "accounts");
