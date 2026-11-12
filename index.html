@@ -658,6 +658,7 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 .srchbtn{background:var(--surface2)!important;border:1px solid var(--line)!important;border-radius:.7rem!important;padding:.6rem .75rem!important;font-size:1rem!important;font-weight:500!important;min-height:0!important;color:var(--ink)!important;box-sizing:border-box}
 .txsheet .m-foot{position:static!important;background:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0!important;border:0!important;box-shadow:none!important;padding:.5rem 0 0!important;margin:0!important}
 .txsheet .m-foot .row-btns{gap:.7rem}.txsheet .m-foot .row-btns .btn{border-radius:999px;min-height:3rem;box-shadow:none}.txsheet .m-foot .row-btns .btn:not(.primary){background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
+.regsec{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin:.9rem 0 .3rem;padding:.55rem .8rem;border-radius:.9rem;font-size:.82rem;background:color-mix(in srgb,var(--acc,#2a7) 12%,transparent)}.regsec b{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}.regsec span{opacity:.75}.regsec.un{background:color-mix(in srgb,#e08a00 18%,transparent);border-left:4px solid #e08a00}.regsec.un.ok{background:color-mix(in srgb,var(--pos,#2a7) 14%,transparent);border-left-color:var(--pos,#2a7)}.regsec.st{border-left:4px solid var(--acc,#2a7)}
 </style>
 
 <div id="root"></div>
@@ -1593,7 +1594,7 @@ function txLine(t, { running = null, showAcc = true } = {}) {
   const lbl = txLabel(t), cat = txCatLabel(t);
   const sub = [cat, t.oc && t.oa ? money(t.oa * Math.sign(t.v || -1), t.oc) : null, showAcc ? a?.name : null, t.by && t.src !== "mw" ? "by " + t.by : null].filter(Boolean).join(" · ");
   return `<div class="txr" data-tx="${t.id}" role="button" tabindex="0">${dayBadge(t.d)}<div class="r-main"><div class="r-t">${esc(lbl)}${t.pending ? ` <span class="pill">Pending</span>` : ""}</div><div class="r-s">${esc(sub)}${t.n ? ` · <span class="faint">${esc(t.n)}</span>` : ""}</div></div>
-    <div class="r-amt"><span class="money ${cls(t.v)}">${esc(money(t.v, cur, { sign: true }))}</span>${running ? (running.has(t.id) ? `<span class="rb money">${esc(money(running.get(t.id), cur))}</span>` : `<span class="rb muted">·</span>`) : ""}</div>${t.t === "adj" ? "" : `<button type="button" class="txdup" data-dup="${t.id}" title="Duplicate this entry" aria-label="Duplicate this entry">${icon("copy", 1.8)}</button>`}</div>`;
+    <div class="r-amt"><span class="money ${cls(t.v)}">${esc(money(t.v, cur, { sign: true }))}</span>${running ? (running.has(t.id) ? `<span class="rb money">${esc(money(running.get(t.id), cur))}</span>` : "") : ""}</div>${t.t === "adj" ? "" : `<button type="button" class="txdup" data-dup="${t.id}" title="Duplicate this entry" aria-label="Duplicate this entry">${icon("copy", 1.8)}</button>`}</div>`;
 }
 function wireTx(el) { el.querySelectorAll("[data-dup]").forEach(b => b.onclick = e => { e.stopPropagation(); const t = txMap().get(+b.dataset.dup); if (t) openTx(null, dupOpts(t)); }); el.querySelectorAll("[data-tx]").forEach(r => { r.onclick = e => { if (e.target.closest("[data-dup]")) return; openTx(txMap().get(+r.dataset.tx)); }; r.onkeydown = e => { if (e.key === "Enter") r.click(); }; }); }
 function modal(html, onMount, wide = false) {
@@ -5169,15 +5170,16 @@ function vAccount(v) {
   const b = bal(a.id), k = kindOf(a), B = base();
   const all = sortedTx().filter(t => t.a === a.id); const running = new Map();
   const lim = +(a.card?.limit || a.limit) || 0, avail = !!(a.card?.avail && lim > 0), fv = x => avail ? Math.round((lim + x) * 100) / 100 : x;
-  const recOn = !!recCounts().get(a.id)?.on, basisRec = recOn && !a.recAll;
-  let r = a.open || 0; for (const t of all) { r += t.v; if (!basisRec) running.set(t.id, fv(Math.round(r * 100) / 100)); else if (!t.pending && t.rec) running.set(t.id, fv(Math.round(r * 100) / 100)); }
-  if (basisRec) { let q = a.open || 0; running.clear(); for (const t of all) { if (!t.pending && t.rec) { q += t.v; running.set(t.id, fv(Math.round(q * 100) / 100)); } } }
-  const rm0 = recMath(a, all), shownBal = basisRec ? rm0.recBal : b;
+  let recOn = false, basisRec = false, shownBal = b, curB = b;
+  const calcRun = () => { running.clear(); recOn = all.some(t => !t.pending && t.rec); basisRec = recOn && !a.recAll; let q = a.open || 0, all0 = a.open || 0;
+    for (const t of all) { all0 += t.v; if (!basisRec) running.set(t.id, fv(Math.round(all0 * 100) / 100)); else if (!t.pending && t.rec) { q += t.v; running.set(t.id, fv(Math.round(q * 100) / 100)); } }
+    curB = Math.round(all0 * 100) / 100; shownBal = basisRec ? recMath(a, all).recBal : curB; };
+  calcRun();
   const P = S2.p; P.q ??= ""; P.lim ??= 60; P.rf ??= "all"; P.rm ??= false; const sel = P.sel = (P.sel && P.sel.acc === a.id) ? P.sel : Object.assign(new Set(), { acc: a.id });
   v.innerHTML = `<button class="btn sm ghost back" id="back">← ${k === "card" ? "Cards" : k === "loan" ? "Loans" : DEBT.has(k) ? "Owe & owed" : "Accounts"}</button>
     ${topbar(esc(a.name), `${KINDS[k]} · ${a.type} · ${esc(ctryName(ctryOf(a)))} (${a.cur})${groupMap().get(a.group) ? " · " + esc(groupMap().get(a.group).name) : ""}`, `<button class="btn" id="impSt">${icon("upload")}Import statement</button><button class="btn" id="editAcc">Edit</button><button class="btn" id="setBal">${k === "investment" ? "Update value" : "Correct balance"}</button>${addBtn("Add entry", `data-acc="${a.id}"`)}`)}
     ${collChips(a)}<section class="grid">
-      <div class="card span-4 stack"><div><div class="muted" style="font-size:.85rem">${avail ? "Available credit" : "Balance"}${basisRec ? " · reconciled" : ""}</div><div class="bigval money ${cls(fv(shownBal))}">${esc(money(fv(shownBal), a.cur))}</div>${a.cur !== B ? `<div class="muted money">≈ ${esc(money(toBase(fv(shownBal), a.cur), B))}</div>` : ""}${basisRec ? `<div class="muted" style="font-size:.8rem;margin-top:.2rem">With unreconciled and pending: <b class="money">${esc(money(fv(b), a.cur))}</b></div>` : ""}</div>
+      <div class="card span-4 stack"><div><div id="balHead"></div></div>
         <div class="kv"><span>Opening balance</span><b class="money">${esc(money(a.open, a.cur))}</b><span>Entries</span><b>${all.length.toLocaleString()}</b>${all.length ? `<span>First entry</span><b>${fmtDate(all[0].d)}</b><span>Last entry</span><b>${fmtDate(all.at(-1).d)}</b>` : ""}<span>In net worth</span><b>${a.nw ? "Yes" : "No"}</b></div>
         ${k === "card" ? `<button class="btn" data-goview="cards">Card details</button>` : k === "loan" ? `<button class="btn" id="toLoan">Loan schedule</button>` : DEBT.has(k) ? `<button class="btn primary" id="settle">Settle up</button>` : ""}</div>
       <div class="card span-8"><div class="card-h"><h2>Balance history</h2><span class="note">Month-end</span></div><div class="chart" id="accC"></div></div>
@@ -5221,18 +5223,29 @@ function vAccount(v) {
     const f = all.slice().reverse().filter(t => flt[P.rf](t) && (!q || txMatchQ(t, q)));
     lastF = f;
     const { d } = P.rm ? diffOf() : { d: null }; const dt = P.rm ? (stm().date || "") : "";
-    $("#reg").innerHTML = f.slice(0, P.lim).map(t => { const s2 = txSt(t), on = P.rm ? sel.has(t.id) : s2 === "r"; let hint = "";
+    const rowH = t => { const s2 = txSt(t), on = P.rm ? sel.has(t.id) : s2 === "r"; let hint = "";
         if (P.rm && d != null && d !== 0 && s2 === "c") { if (!sel.has(t.id) && Math.abs(t.v - d) < .005) hint = `<span class="rhint">ticking this closes the gap</span>`; else if (sel.has(t.id) && Math.abs(t.v + d) < .005) hint = `<span class="rhint">unticking this closes the gap</span>`; }
         const dis = P.rm && s2 !== "c"; const after = P.rm && dt && t.d > dt && s2 === "c";
-        return `<div class="recrow ${after ? "after" : ""}"><button class="rcb ${s2} ${on ? "on" : ""}" data-rc="${t.id}" ${dis ? "disabled" : ""} aria-label="${s2 === "p" ? "Pending" : on ? "Reconciled" : "Not reconciled"}" title="${s2 === "p" ? "Pending. Tap to mark as cleared and reconciled" : P.rm ? "Tick if it is on the statement" : on ? "Reconciled. Tap to undo" : "Tap to reconcile"}">${s2 === "p" ? "◔" : on ? "✓" : ""}</button><div class="rcm">${txLine(t, { running, showAcc: false })}${hint}</div>${s2 === "p" || P.rm ? "" : `<button class="rcp" data-rp="${t.id}" title="Mark as pending" aria-label="Mark as pending">◔</button>`}</div>`; }).join("") +
-      (f.length > P.lim ? `<div class="more"><button class="btn" id="more">Show ${Math.min(200, f.length - P.lim)} more of ${(f.length - P.lim).toLocaleString()}</button></div>` : "") || `<div class="empty">${P.rf === "all" ? "No entries" : "Nothing here. " + (P.rf === "unrec" ? "Everything is reconciled or pending." : "No entries match this filter.")}</div>`;
+        return `<div class="recrow ${after ? "after" : ""}"><button class="rcb ${s2} ${on ? "on" : ""}" data-rc="${t.id}" ${dis ? "disabled" : ""} aria-label="${s2 === "p" ? "Pending" : on ? "Reconciled" : "Not reconciled"}" title="${s2 === "p" ? "Pending. Tap to mark as cleared and reconciled" : P.rm ? "Tick if it is on the statement" : on ? "Reconciled. Tap to undo" : "Tap to reconcile"}">${s2 === "p" ? "◔" : on ? "✓" : ""}</button><div class="rcm">${txLine(t, { running, showAcc: false })}${hint}</div>${s2 === "p" || P.rm ? "" : `<button class="rcp" data-rp="${t.id}" title="Mark as pending" aria-label="Mark as pending">◔</button>`}</div>`; };
+    let body = "";
+    if (basisRec && P.rf === "all") {
+      const un = f.filter(t => t.pending || !t.rec), rc = f.filter(t => !t.pending && t.rec); lastF = un.concat(rc);
+      const unSum = un.reduce((x, t) => x + t.v, 0);
+      body = (un.length ? `<div class="regsec un"><b>To reconcile</b><span>${un.length.toLocaleString()} ${un.length === 1 ? "entry" : "entries"} · <span class="money">${esc(money(unSum, a.cur, { sign: true }))}</span></span></div>` + un.slice(0, P.lim).map(rowH).join("") : `<div class="regsec un ok"><b>To reconcile</b><span>All caught up</span></div>`)
+        + `<div class="regsec st"><b>Statement</b><span>${rc.length.toLocaleString()} reconciled · running balance</span></div>` + (rc.length ? rc.slice(0, P.lim).map(rowH).join("") : `<div class="empty">Nothing reconciled yet</div>`)
+        + ((un.length > P.lim || rc.length > P.lim) ? `<div class="more"><button class="btn" id="more">Show more</button></div>` : "");
+    } else {
+      body = f.slice(0, P.lim).map(rowH).join("") + (f.length > P.lim ? `<div class="more"><button class="btn" id="more">Show ${Math.min(200, f.length - P.lim)} more of ${(f.length - P.lim).toLocaleString()}</button></div>` : "");
+    }
+    $("#reg").innerHTML = body || `<div class="empty">${P.rf === "all" ? "No entries" : "Nothing here. " + (P.rf === "unrec" ? "Everything is reconciled or pending." : "No entries match this filter.")}</div>`;
     wireTx($("#reg")); const mb = $("#more"); if (mb) mb.onclick = () => { P.lim += 200; draw(); };
     $("#reg").querySelectorAll("[data-rc]").forEach(x => x.onclick = () => { const t = txMap().get(+x.dataset.rc); if (!t) return;
       if (P.rm && txSt(t) === "c") { sel.has(t.id) ? sel.delete(t.id) : sel.add(t.id); paintPanel2(); return; }
       if (txSt(t) === "p") { delete t.pending; t.rec = true; } else if (t.rec) delete t.rec; else t.rec = true; stamp(t); changed(); refresh(); });
     $("#reg").querySelectorAll("[data-rp]").forEach(x => x.onclick = () => { const t = txMap().get(+x.dataset.rp); if (!t) return; t.pending = true; delete t.rec; stamp(t); changed(); refresh(); });
   };
-  const refresh = () => { paintPanel(); draw(); };
+  const paintHead = () => { const el = $("#balHead"); if (!el) return; el.innerHTML = `<div class="muted" style="font-size:.85rem">${avail ? "Available credit" : "Balance"}${basisRec ? " · reconciled" : ""}</div><div class="bigval money ${cls(fv(shownBal))}">${esc(money(fv(shownBal), a.cur))}</div>${a.cur !== B ? `<div class="muted money">≈ ${esc(money(toBase(fv(shownBal), a.cur), B))}</div>` : ""}${basisRec ? `<div class="muted" style="font-size:.8rem;margin-top:.2rem">With unreconciled and pending: <b class="money">${esc(money(fv(curB), a.cur))}</b></div>` : ""}`; };
+  const refresh = () => { calcRun(); paintHead(); paintPanel(); draw(); };
   $("#q").oninput = e => { P.q = e.target.value; P.lim = 60; draw(); }; refresh();
   $("#xlReg").onclick = () => { if (!lastF.length) return toast("No entries to export"); xlRegister(a, lastF, running, [P.rf !== "all" ? ({ unrec: "Unreconciled", pend: "Pending", rec: "Reconciled" })[P.rf] : "", P.q ? `search "${P.q}"` : ""].filter(Boolean).join(", ")); };
   $("#back").onclick = () => go(k === "card" ? "cards" : k === "loan" ? "loans" : DEBT.has(k) ? "people" : "accounts");
