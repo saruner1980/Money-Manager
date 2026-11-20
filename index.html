@@ -1630,6 +1630,7 @@ function topPayees(n = 8) { return memo("topPay" + n, () => { const from = addMo
 function defaultAcc() { const st = sortedTx(), c = new Map(); let n = 0; for (let i = st.length - 1; i >= 0 && n < 80; i--) { const t = st[i]; if (t.t === "exp" && !accMap().get(t.a)?.archived) { c.set(t.a, (c.get(t.a) || 0) + 1); n++; } } const best = [...c.entries()].sort((a, b) => b[1] - a[1])[0]; return best ? best[0] : D().accounts.find(a => !a.archived && kindOf(a) === "bank")?.id; }
 
 /* ================= transaction editor (quick add) ================= */
+function ctxAddOpts() { const a = S2.view === "account" ? accMap().get(S2.p?.id) : null; return a && !a.archived ? { acc: a.id } : {}; }
 function openTx(t, opt = {}) {
   const sch = opt.fromSched; let type = t ? (t.t === "tin" || t.t === "tout" ? "tr" : t.t) : (sch ? sch.t : (opt.type || "exp"));
   let w = null, dp = null; if (t && t.t === "tin") { dp = t; w = txMap().get(t.x) || null; } if (t && t.t === "tout") { w = t; dp = txMap().get(t.x) || null; }
@@ -1696,9 +1697,9 @@ function openTx(t, opt = {}) {
     };
     const fillFrom = last => { if (!last) return; if (!touched.cat && last.c?.length === 1) { I.cat = last.c[0][0]; $("#tCat", m).value = ""; } if (!touched.acc) $("#tAcc", m).value = last.a; if (last.t !== type && (last.t === "exp" || last.t === "inc")) { type = last.t; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); } sync(); if (!touched.cat && last.c?.length === 1) $("#tCat", m).value = last.c[0][0]; };
     m.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { type = b.dataset.ty; m.querySelectorAll("[data-ty]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ty === type)); sync(); });
-    m.querySelectorAll("[data-pc]").forEach(b => b.onclick = () => { const last = txMap().get(+b.dataset.pc); $("#tPay", m).value = payName(last.p); touched.cat = false; touched.acc = false; fillFrom(last); if (!$("#tAmt", m).value) $("#tAmt", m).focus(); });
+    m.querySelectorAll("[data-pc]").forEach(b => b.onclick = () => { const last = txMap().get(+b.dataset.pc); $("#tPay", m).value = payName(last.p); touched.cat = false; touched.acc = !!opt.acc || !!touched.accUser; fillFrom(last); if (!$("#tAmt", m).value) $("#tAmt", m).focus(); });
     $("#tPay", m).onchange = () => { const p = D().payees.find(x => x.name.toLowerCase() === clean($("#tPay", m).value).toLowerCase()); if (p) fillFrom(lastByPayee().get(p.id)); };
-    $("#tCat", m).onchange = () => touched.cat = true; $("#tAcc", m).onchange = () => { touched.acc = true; sync(); }; $("#tTo", m).onchange = () => { $("#tRecv", m).value = ""; $("#tTrRate", m).value = ""; delete $("#tTrRate", m).dataset.auto; sync(); };
+    $("#tCat", m).onchange = () => touched.cat = true; $("#tAcc", m).onchange = () => { touched.acc = true; touched.accUser = true; sync(); }; $("#tTo", m).onchange = () => { $("#tRecv", m).value = ""; $("#tTrRate", m).value = ""; delete $("#tTrRate", m).dataset.auto; sync(); };
     $("#tCur", m).onchange = () => { $("#tRate", m).value = ""; $("#tRate", m).dataset.auto = 1; sync(); }; $("#tRate", m).oninput = () => { delete $("#tRate", m).dataset.auto; sync(); };
     $("#tAmt", m).oninput = () => { if (type !== "tr") { const n = $("#fxNote", m); if (!n.hidden) sync(); } const ca = accMap().get(+$("#tAcc", m).value)?.cur, cb = accMap().get(+$("#tTo", m).value)?.cur; if (type === "tr" && ca && cb && ca !== cb) $("#tRecv", m).value = ((calc($("#tAmt", m).value) || 0) * (parseFloat($("#tTrRate", m).value) || fromTo(1, ca, cb))).toFixed(2); calcShow(m); };
     $("#tTrRate", m).oninput = () => { delete $("#tTrRate", m).dataset.auto; $("#tRecv", m).value = ((calc($("#tAmt", m).value) || 0) * (parseFloat($("#tTrRate", m).value) || 0)).toFixed(2); };
@@ -1730,7 +1731,7 @@ function openTx(t, opt = {}) {
       return true;
     };
     $("#tSave", m).onclick = () => { if (!save()) return; changed(); close(); renderApp(); toast(t ? "Saved" : sch ? "Recorded" : "Added"); };
-    if ($("#tMore", m)) $("#tMore", m).onclick = () => { if (!save()) return; changed(); toast("Added"); $("#tAmt", m).value = ""; $("#tPay", m).value = ""; $("#tDesc", m).value = ""; $("#tNotes", m).value = ""; touched = { cat: false, acc: true }; $("#txErr", m).hidden = true; $("#tAmt", m).focus(); };
+    if ($("#tMore", m)) $("#tMore", m).onclick = () => { if (!save()) return; changed(); toast("Added"); $("#tAmt", m).value = ""; $("#tPay", m).value = ""; $("#tDesc", m).value = ""; $("#tNotes", m).value = ""; touched = { cat: false, acc: true, accUser: touched.accUser }; $("#txErr", m).hidden = true; $("#tAmt", m).focus(); };
     if ($("#tDup", m)) $("#tDup", m).onclick = () => { close(); openTx(null, dupOpts(t)); };
     if (t) $("#tDel", m).onclick = () => { const f = $(".m-foot", m); f.firstElementChild.innerHTML = `<span class="neg" style="margin-right:.5rem">Delete${t.t === "tin" || t.t === "tout" ? " both sides of this transfer" : ""}?</span><button class="btn danger" id="tDel2">Delete</button>`;
       $("#tDel2", m).onclick = () => { delTx(t); changed(); close(); renderApp(); toast("Deleted"); }; };
@@ -6460,8 +6461,8 @@ function renderApp() {
   const mo = $("#more"); if (mo) { if (!["home", "accounts", "upcoming"].includes(S2.view)) mo.setAttribute("aria-current", "page"); else mo.removeAttribute("aria-current"); }
   if (!fresh) { renderView(item); return; }
   root.querySelectorAll("[data-go]").forEach(a => a.onclick = () => go(a.dataset.go));
-  $("#more").onclick = openSheet; $("#railAdd").onclick = () => openTx(null); $("#pin").onclick = () => { const on = !document.body.classList.contains("rail-pinned"); document.body.classList.toggle("rail-pinned", on); try { localStorage.setItem("ml-rail", on ? "1" : "0"); } catch (e) { } const b = $("#pin"); b.title = b.ariaLabel = on ? "Collapse menu" : "Keep menu open"; if (!on) b.blur(); };
-  $("#fab").onclick = () => openTx(null);
+  $("#more").onclick = openSheet; $("#railAdd").onclick = () => openTx(null, ctxAddOpts()); $("#pin").onclick = () => { const on = !document.body.classList.contains("rail-pinned"); document.body.classList.toggle("rail-pinned", on); try { localStorage.setItem("ml-rail", on ? "1" : "0"); } catch (e) { } const b = $("#pin"); b.title = b.ariaLabel = on ? "Collapse menu" : "Keep menu open"; if (!on) b.blur(); };
+  $("#fab").onclick = () => openTx(null, ctxAddOpts());
   document.body.classList.toggle("wiz", S2.view === "import");
   renderView(item);
 }
