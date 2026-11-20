@@ -659,6 +659,13 @@ input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-an
 .txsheet .m-foot{position:static!important;background:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0!important;border:0!important;box-shadow:none!important;padding:.5rem 0 0!important;margin:0!important}
 .txsheet .m-foot .row-btns{gap:.7rem}.txsheet .m-foot .row-btns .btn{border-radius:999px;min-height:3rem;box-shadow:none}.txsheet .m-foot .row-btns .btn:not(.primary){background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
 .regsec{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin:.9rem 0 .3rem;padding:.55rem .8rem;border-radius:.9rem;font-size:.82rem;background:color-mix(in srgb,var(--acc,#2a7) 12%,transparent)}.regsec b{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}.regsec span{opacity:.75}.regsec.un{background:color-mix(in srgb,#e08a00 18%,transparent);border-left:4px solid #e08a00}.regsec.un.ok{background:color-mix(in srgb,var(--pos,#2a7) 14%,transparent);border-left-color:var(--pos,#2a7)}.regsec.st{border-left:4px solid var(--acc,#2a7)}
+
+/* v65: keep tab bar pinned on iPhone while scrolling */
+@media (max-width:760px){
+  body{background-attachment:scroll}
+  .tabbar{position:fixed;bottom:calc(.6rem + env(safe-area-inset-bottom,0px));-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0);will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;contain:layout;touch-action:manipulation}
+  html,body{overscroll-behavior-y:none}
+}
 </style>
 
 <div id="root"></div>
@@ -4560,7 +4567,8 @@ function gdBar() {
   const need = GD.state.connected && !S.data?.meta?.sample && VAULT.key && !gdValid() && P6_online() && P6_hosted();
   let b = document.getElementById("gdBar");
   if (!need) { if (b) b.remove(); return; }
-  if (!b) { b = document.createElement("button"); b.id = "gdBar"; b.className = "gdbar"; b.type = "button"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; await syncNow({ interactive: true }); b.disabled = false; gdBar(); }; }
+  if (!b) { b = document.createElement("button"); b.id = "gdBar"; b.className = "gdbar"; b.type = "button"; document.body.appendChild(b); b.onclick = async () => { b.disabled = true; try { await syncNow({ interactive: true }); } catch (e) { try { toast(e.message || "Google sign-in didn't complete"); } catch (_) { } } b.disabled = false; gdBar(); }; }
+  if (need && !(window.google && google.accounts)) loadGIS().catch(() => { }); // preload so the tap can open Google's sign-in straight away (iPhone blocks it otherwise)
   b.textContent = GD.state.dirty ? "Changes waiting. Tap to sign in to Google and sync" : "Tap to sign in to Google and sync your other devices";
 }
 setInterval(() => { try {
@@ -6896,6 +6904,31 @@ document.addEventListener("pointermove", e => { if (!document.body.classList.con
     return r; };
   const css = document.createElement("style"); css.textContent = `.gface .g-edit{display:none!important}.gface .pl-bot{margin-right:2.9rem!important}.gset{margin:.1rem 0 .4rem;justify-self:start}`;
   document.body.appendChild(css);
+})();
+
+/* ===== v65: Add-entry draft survives app switch / page reload ===== */
+(function () {
+  const K = "ml-txdraft", TTL = 6 * 3600e3; let restored = false;
+  const rd = () => { try { const d = JSON.parse(localStorage.getItem(K) || "null"); return d && Date.now() - d.ts < TTL ? d : null; } catch (e) { return null; } };
+  const wr = d => { try { d ? localStorage.setItem(K, JSON.stringify(d)) : localStorage.removeItem(K); } catch (e) { } };
+  const po = openTx;
+  openTx = function (t, opt) {
+    const r = po.apply(this, arguments);
+    try {
+      if (t || (opt && opt.fromSched)) return r;
+      const sc = [...document.querySelectorAll(".scrim")].pop(), m = sc && sc.querySelector("#txf") && sc.firstElementChild; if (!m || sc._dr) return r; sc._dr = 1;
+      const v = id => { const e = m.querySelector("#" + id); return e ? e.value : ""; };
+      const save = () => { if (!document.body.contains(sc)) return; const ty = m.querySelector("[data-ty][aria-pressed='true']");
+        const d = { ts: Date.now(), type: ty ? ty.dataset.ty : "exp", acc: +v("tAcc") || v("tAcc"), to: +v("tTo") || null, amt: v("tAmt"), payee: v("tPay"), cat: +v("tCat") || null, desc: v("tDesc"), notes: v("tNotes"), oc: v("tCur") && v("tCur") !== (accMap().get(+v("tAcc"))?.cur) ? v("tCur") : "", ocRate: v("tRate") };
+        wr(d.amt || d.desc || d.payee || d.notes ? d : null); };
+      m.addEventListener("input", save); m.addEventListener("change", save); m.addEventListener("click", () => setTimeout(save, 50));
+      sc.addEventListener("pointerdown", e => { if (e.target === sc) e.stopImmediatePropagation(); }, true); // outside taps no longer close it
+      new MutationObserver(() => { if (!document.body.contains(sc)) { wr(null); } }).observe(document.body, { childList: true });
+    } catch (e) { console.error(e); }
+    return r;
+  };
+  const tryRestore = () => { try { if (restored || typeof D !== "function" || !D() || !document.querySelector(".shell") || document.querySelector(".scrim")) return; restored = true; const d = rd(); if (d) { delete d.ts; openTx(null, d); } } catch (e) { console.error(e); } };
+  let n = 0; const iv = setInterval(() => { tryRestore(); if (restored || ++n > 60) clearInterval(iv); }, 500);
 })();
 </script>
 </body></html>
